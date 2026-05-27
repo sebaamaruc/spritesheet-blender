@@ -1,0 +1,12 @@
+schema_version = "1.0.0"
+id = "spritesheet_frame_selector"
+version = "0.1.0"
+name = "SpriteSheet Frame Selector"
+tagline = "Visual frame selection and spritesheet export for animations"
+maintainer = "Developer <dev@example.com>"
+type = "add-on"
+blender_version_min = "5.0.0"
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+files = "Export spritesheets and cache preview images to disk"
