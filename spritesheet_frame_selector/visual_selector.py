@@ -357,12 +357,12 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
     def draw_header_footer(self, width, height, clip, selected_count, total_count):
         """Draws header and footer overlays with labels and shortcuts"""
         # Header (Top background)
-        self.draw_rect(self.x_start, self.y_header_start, self.avail_width, self.y_header_height, (0.09, 0.09, 0.09, 0.99))
+        self.draw_rect(self.x_start, self.y_header_start, self.avail_width, self.y_header_height, (0.09, 0.09, 0.09, 1.0))
         # Divider line
         self.draw_rect(self.x_start, self.y_header_start - 1, self.avail_width, 1, (0.2, 0.2, 0.2, 1.0))
         
         # Footer (Bottom background)
-        self.draw_rect(self.x_start, self.y_footer_start, self.avail_width, self.y_footer_height, (0.09, 0.09, 0.09, 0.99))
+        self.draw_rect(self.x_start, self.y_footer_start, self.avail_width, self.y_footer_height, (0.09, 0.09, 0.09, 1.0))
         # Divider line (above footer if buttons are in footer, otherwise at the top of footer)
         self.draw_rect(self.x_start, self.y_footer_start + self.y_footer_height, self.avail_width, 1, (0.2, 0.2, 0.2, 1.0))
         
@@ -431,10 +431,13 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         gpu.state.blend_set('NONE')
         
         # Draw solid dark main background covering the entire selector area
-        self.draw_rect(self.x_start, self.y_start, self.avail_width, self.avail_height, (0.06, 0.06, 0.06, 0.98))
+        self.draw_rect(self.x_start, self.y_start, self.avail_width, self.avail_height, (0.06, 0.06, 0.06, 1.0))
         
         # Re-enable alpha blending for subsequent textured/text elements
         gpu.state.blend_set('ALPHA')
+        
+        # Protect alpha channel of the framebuffer during all cell rendering to prevent any transparency leaks
+        gpu.state.color_mask_set(True, True, True, False)
         
         # 2. Draw Grid Items
         selected_count = 0
@@ -448,56 +451,47 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
             if (item['y'] + item['h'] < grid_bottom) or (item['y'] > grid_top):
                 continue
                 
-            # Card background
-            bg_color = (0.15, 0.15, 0.15, 0.9)
+            # A) Card background (opaque to ensure solid composition)
+            bg_color = (0.15, 0.15, 0.15, 1.0)
             if item['index'] == self.last_hovered_idx:
-                bg_color = (0.22, 0.22, 0.22, 0.9)
+                bg_color = (0.22, 0.22, 0.22, 1.0)
             self.draw_rect(item['x'], item['y'], item['w'], item['h'], bg_color)
             
-            # Selection Border or Highlight
-            border_w = 3
-            if item['selected']:
-                # Bright selection border
-                self.draw_rect(item['x'], item['y'] + 20, item['w'], border_w, (0.0, 0.6, 1.0, 1.0)) # Top of thumbnail
-                self.draw_rect(item['x'], item['y'] + 20, border_w, item['h'] - 20, (0.0, 0.6, 1.0, 1.0)) # Left
-                self.draw_rect(item['x'] + item['w'] - border_w, item['y'] + 20, border_w, item['h'] - 20, (0.0, 0.6, 1.0, 1.0)) # Right
-                self.draw_rect(item['x'], item['y'] + item['h'] - border_w, item['w'], border_w, (0.0, 0.6, 1.0, 1.0)) # Top
-            else:
-                # Dim overlay for unselected frames
-                pass
-            
-            # Draw Preview Image (Thumbnail)
+            # Setup thumbnail dimensions and coordinates
             img = self.preview_images.get(item['frame_number'])
             preview_sz = int(clip.preview_size)
-            # Offset inside cell: center thumbnail
             thumb_w = min(item['w'] - 10, preview_sz)
             thumb_h = min(item['w'] - 10, preview_sz) # keep square
             thumb_x = item['x'] + (item['w'] - thumb_w) // 2
             thumb_y = item['y'] + 25 + (item['h'] - 25 - thumb_h) // 2
             
-            # Draw solid dark background under transparent preview to enhance readability
+            # B) Draw solid dark background under transparent preview to enhance readability
             self.draw_rect(thumb_x, thumb_y, thumb_w, thumb_h, (0.12, 0.12, 0.12, 1.0))
             
+            # C) Draw Preview Image (Thumbnail) normal, identical for selected and unselected
             if img:
                 try:
                     texture = gpu.texture.from_image(img)
-                    # Disable writing to alpha channel to prevent transparent pixels from clearing the opaque cell background alpha
-                    gpu.state.color_mask_set(True, True, True, False)
                     draw_texture_2d(texture, (thumb_x, thumb_y), thumb_w, thumb_h)
-                    gpu.state.color_mask_set(True, True, True, True)
                 except Exception as e:
-                    # Draw placeholder gray box
                     self.draw_rect(thumb_x, thumb_y, thumb_w, thumb_h, (0.25, 0.25, 0.25, 1.0))
             else:
-                # Draw placeholder box
                 self.draw_rect(thumb_x, thumb_y, thumb_w, thumb_h, (0.25, 0.25, 0.25, 1.0))
                 
-            # Dim the thumbnail itself if not selected
+            # D) Draw Dim Overlay ON TOP of the image if unselected
             if not item['selected']:
-                # Draw semi-transparent dark overlay on thumbnail
                 self.draw_rect(thumb_x, thumb_y, thumb_w, thumb_h, (0.0, 0.0, 0.0, 0.55))
-            
-            # Playback Highlight (Golden border when playing, Blue border when paused) — drawn AFTER thumbnail so it's visible
+                
+            # E) Draw Borders according to state
+            border_w = 3
+            if item['selected']:
+                # Bright selection border
+                self.draw_rect(item['x'], item['y'] + 20, item['w'], border_w, (0.0, 0.6, 1.0, 1.0)) # Bottom of thumbnail
+                self.draw_rect(item['x'], item['y'] + 20, border_w, item['h'] - 20, (0.0, 0.6, 1.0, 1.0)) # Left
+                self.draw_rect(item['x'] + item['w'] - border_w, item['y'] + 20, border_w, item['h'] - 20, (0.0, 0.6, 1.0, 1.0)) # Right
+                self.draw_rect(item['x'], item['y'] + item['h'] - border_w, item['w'], border_w, (0.0, 0.6, 1.0, 1.0)) # Top
+                
+            # Playback Highlight (Golden border when playing, Blue border when paused)
             if item['index'] == self.playback_index:
                 border = 3
                 color = (1.0, 0.8, 0.0, 1.0) if self.is_playing else (0.0, 0.6, 1.0, 1.0)
@@ -506,19 +500,21 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
                 self.draw_rect(item['x'] + item['w'], item['y'] + 20 - border, border, item['h'] - 20 + border * 2, color)
                 self.draw_rect(item['x'] - border, item['y'] + item['h'], item['w'] + border * 2, border, color)
                 
-            # Frame label
+            # F) Frame label
             font_id = 0
             blf.size(font_id, 11)
             lbl = f"Frame {item['frame_number']}"
             lbl_w, lbl_h = blf.dimensions(font_id, lbl)
             
-            # Position centered at bottom of cell
             blf.position(font_id, item['x'] + (item['w'] - lbl_w) / 2, item['y'] + 6, 0)
             if item['selected']:
                 blf.color(font_id, 0.0, 0.8, 1.0, 1.0)
             else:
                 blf.color(font_id, 0.6, 0.6, 0.6, 1.0)
             blf.draw(font_id, lbl)
+            
+        # Restore color mask to default
+        gpu.state.color_mask_set(True, True, True, True)
             
         # 3. Draw Playback Viewer (if enabled)
         self.draw_playback_viewer(width, height, clip)
@@ -535,9 +531,12 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         if self.viewer_height <= 0:
             return
             
+        # Protect alpha channel of the framebuffer during viewer rendering
+        gpu.state.color_mask_set(True, True, True, False)
+            
         # 1. Background box for viewer area (strictly within available width)
         viewer_y_start = self.y_viewer_start
-        self.draw_rect(self.x_start, viewer_y_start, self.avail_width, self.y_viewer_height, (0.08, 0.08, 0.08, 0.99))
+        self.draw_rect(self.x_start, viewer_y_start, self.avail_width, self.y_viewer_height, (0.08, 0.08, 0.08, 1.0))
         # Divider line at the bottom of the viewer area
         self.draw_rect(self.x_start, viewer_y_start, self.avail_width, 1, (0.2, 0.2, 0.2, 1.0))
         
@@ -558,6 +557,7 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
                 preview_frame_idx = 0
                 
         if not clip.frames:
+            gpu.state.color_mask_set(True, True, True, True)
             return
             
         frame_item = clip.frames[preview_frame_idx]
@@ -575,10 +575,7 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         if img:
             try:
                 texture = gpu.texture.from_image(img)
-                # Disable writing to alpha channel to prevent transparent pixels from clearing the opaque viewer background alpha
-                gpu.state.color_mask_set(True, True, True, False)
                 draw_texture_2d(texture, (preview_x, preview_y), preview_sz, preview_sz)
-                gpu.state.color_mask_set(True, True, True, True)
             except Exception as e:
                 self.draw_rect(preview_x, preview_y, preview_sz, preview_sz, (0.25, 0.25, 0.25, 1.0))
         else:
@@ -605,8 +602,8 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
             else:
                 blf.color(font_id, 0.6, 0.6, 0.6, 1.0)
                 
-            text_y_status = viewer_y_start + self.viewer_height // 2 + 10
-            text_y_frame = viewer_y_start + self.viewer_height // 2 - 15
+            text_y_status = viewer_y_start + self.y_viewer_height // 2 + 10
+            text_y_frame = viewer_y_start + self.y_viewer_height // 2 - 15
             
             blf.position(font_id, preview_x - 180, text_y_status, 0)
             blf.draw(font_id, status_str)
@@ -624,6 +621,9 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
             
             blf.position(font_id, preview_x + preview_sz + 40, text_y_frame, 0)
             blf.draw(font_id, f"SPEED: {clip.fps} FPS")
+            
+        # Restore color mask to default
+        gpu.state.color_mask_set(True, True, True, True)
 
     def handle_playback_tick(self):
         """Timer callback for playback preview"""
