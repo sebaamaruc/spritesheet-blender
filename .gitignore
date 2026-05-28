@@ -1,0 +1,8 @@
+# image
+*.png
+
+# data
+*.json
+
+# archive
+*.zip
