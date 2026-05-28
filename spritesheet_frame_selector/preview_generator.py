@@ -121,14 +121,42 @@ def generate_clip_previews(clip, context):
         if active_space and hasattr(active_space, 'shading'):
             shading_type = active_space.shading.type
             
+        import contextlib
+        from .utils import WorldSwapContext
+        
+        # Configure LookDev parameters with explicit fallbacks for headless/background mode
+        studio_light = 'studio.exr'
+        rotate_z = 0.0
+        intensity = 1.0
+        use_scene_lights = False
+        
+        if active_space and hasattr(active_space, 'shading'):
+            sh = active_space.shading
+            if hasattr(sh, 'studio_light'):
+                studio_light = sh.studio_light
+            if hasattr(sh, 'studiolight_rotate_z'):
+                rotate_z = sh.studiolight_rotate_z
+            if hasattr(sh, 'studiolight_intensity'):
+                intensity = sh.studiolight_intensity
+            if hasattr(sh, 'use_scene_lights'):
+                use_scene_lights = sh.use_scene_lights
+
         # Temporarily change scene render engine based on viewport shading mode
         if shading_type in ('WIREFRAME', 'SOLID'):
             scene.render.engine = 'BLENDER_WORKBENCH'
+            ctx = contextlib.nullcontext()
         elif shading_type == 'MATERIAL':
-            scene.render.engine = 'BLENDER_EEVEE'
-        elif shading_type == 'RENDERED':
+            # WorldSwapContext will handle EEVEE engine and 4 samples setup
+            ctx = WorldSwapContext(
+                scene,
+                studio_light=studio_light,
+                rotate_z=rotate_z,
+                intensity=intensity,
+                use_scene_lights=use_scene_lights
+            )
+        else: # RENDERED or others
             # Keep scene's active render engine (EEVEE, Cycles, or Workbench)
-            pass
+            ctx = contextlib.nullcontext()
             
         frames_to_render = list(range(clip.frame_start, clip.frame_end + 1, clip.frame_step))
         total_frames = len(frames_to_render)
@@ -142,27 +170,28 @@ def generate_clip_previews(clip, context):
         context.window_manager.progress_begin(0, total_frames)
         
         try:
-            for idx, frame_num in enumerate(frames_to_render):
-                # Set frame
-                scene.frame_set(frame_num)
-                
-                # Setup path
-                filepath = os.path.join(cache_dir, f"frame_{frame_num:05d}.png")
-                render.filepath = filepath
-                
-                # Perform standard render (EEVEE / Workbench / Cycles) off-screen
-                # write_still=True writes the output directly to disk
-                bpy.ops.render.render(write_still=True)
-                
-                # Add to frames collection
-                item = clip.frames.add()
-                item.frame_number = frame_num
-                item.preview_path = filepath
-                # Restore selection state if it existed before, otherwise default to True
-                item.selected = selection_states.get(frame_num, True)
-                
-                # Update progress
-                context.window_manager.progress_update(idx + 1)
+            with ctx:
+                for idx, frame_num in enumerate(frames_to_render):
+                    # Set frame
+                    scene.frame_set(frame_num)
+                    
+                    # Setup path
+                    filepath = os.path.join(cache_dir, f"frame_{frame_num:05d}.png")
+                    render.filepath = filepath
+                    
+                    # Perform standard render (EEVEE / Workbench / Cycles) off-screen
+                    # write_still=True writes the output directly to disk
+                    bpy.ops.render.render(write_still=True)
+                    
+                    # Add to frames collection
+                    item = clip.frames.add()
+                    item.frame_number = frame_num
+                    item.preview_path = filepath
+                    # Restore selection state if it existed before, otherwise default to True
+                    item.selected = selection_states.get(frame_num, True)
+                    
+                    # Update progress
+                    context.window_manager.progress_update(idx + 1)
                 
             clip.cache_dirty = False
             

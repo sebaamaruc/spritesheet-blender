@@ -270,3 +270,143 @@ def apply_clip_visibility(context, clip):
             
     apply_exclusion(view_layer.layer_collection)
 
+
+class WorldSwapContext:
+    """Context manager to simulate Blender's Material Preview (LookDev) shading mode off-screen.
+    Swaps the scene's World with a temporary LookDev World using the specified HDRI,
+    switches the engine to EEVEE with low samples (4), and hides physical scene lights if configured.
+    All changes are fully restored in a robust try/finally block on exit.
+    """
+    def __init__(self, scene, studio_light='studio.exr', rotate_z=0.0, intensity=1.0, use_scene_lights=False):
+        self.scene = scene
+        self.studio_light = studio_light
+        self.rotate_z = rotate_z
+        self.intensity = intensity
+        self.use_scene_lights = use_scene_lights
+        
+        self.orig_world = None
+        self.orig_engine = None
+        self.orig_samples = None
+        self.temp_world = None
+        self.temp_image = None
+        self.hidden_lights = []
+
+    def __enter__(self):
+        # 1. Save original states
+        self.orig_world = self.scene.world
+        self.orig_engine = self.scene.render.engine
+        
+        # Save EEVEE samples if engine is EEVEE (or if properties exist)
+        if hasattr(self.scene, "eevee") and hasattr(self.scene.eevee, "taa_render_samples"):
+            self.orig_samples = self.scene.eevee.taa_render_samples
+        else:
+            self.orig_samples = 64 # Safe default if not available
+            
+        # 2. Resolve HDRI path using Blender's studio lights preference API
+        hdri_path = ""
+        if hasattr(bpy.context, "preferences") and hasattr(bpy.context.preferences, "studio_lights"):
+            for sl in bpy.context.preferences.studio_lights:
+                if sl.type == 'WORLD' and sl.name == self.studio_light:
+                    hdri_path = sl.path
+                    break
+                    
+        # Fallback to default Blender installation directories if not resolved via preferences
+        if not hdri_path:
+            version = f"{bpy.app.version[0]}.{bpy.app.version[1]}"
+            binary_dir = os.path.dirname(bpy.app.binary_path)
+            possible_dirs = [
+                os.path.normpath(os.path.join(binary_dir, '..', 'Resources', version, 'datafiles', 'studiolights', 'world')),
+                os.path.normpath(os.path.join(binary_dir, version, 'datafiles', 'studiolights', 'world')),
+            ]
+            for d in possible_dirs:
+                test_path = os.path.join(d, self.studio_light)
+                if os.path.exists(test_path):
+                    hdri_path = test_path
+                    break
+                    
+        # Fallback to any valid WORLD studio light if the requested one is missing
+        if not hdri_path and hasattr(bpy.context, "preferences") and hasattr(bpy.context.preferences, "studio_lights"):
+            print(f"utils: HDRI '{self.studio_light}' not found. Falling back to first available WORLD studio light.")
+            for sl in bpy.context.preferences.studio_lights:
+                if sl.type == 'WORLD' and sl.path:
+                    hdri_path = sl.path
+                    break
+                    
+        if not hdri_path:
+            raise FileNotFoundError(f"Could not find HDRI '{self.studio_light}' or any fallback studio light in Blender.")
+
+        # 3. Load HDRI image (Blender automatically reuse images via check_existing)
+        try:
+            self.temp_image = bpy.data.images.load(hdri_path, check_existing=True)
+        except Exception as e:
+            print(f"utils: Error loading HDRI '{hdri_path}': {e}")
+            raise e
+
+        # 4. Get or create temporary World block (session persistent, no aggressive deletion)
+        temp_world_name = f"Temp_LookDev_World_{self.studio_light}"
+        self.temp_world = bpy.data.worlds.get(temp_world_name)
+        if not self.temp_world:
+            self.temp_world = bpy.data.worlds.new(name=temp_world_name)
+            
+        # Rebuild/configure the node tree to match LookDev specifications
+        if hasattr(self.temp_world, "use_nodes"):
+            self.temp_world.use_nodes = True
+        nt = self.temp_world.node_tree
+        nt.nodes.clear()
+        
+        node_out = nt.nodes.new('ShaderNodeOutputWorld')
+        node_bg = nt.nodes.new('ShaderNodeBackground')
+        node_tex = nt.nodes.new('ShaderNodeTexEnvironment')
+        node_mapping = nt.nodes.new('ShaderNodeMapping')
+        node_coord = nt.nodes.new('ShaderNodeTexCoord')
+        
+        node_tex.image = self.temp_image
+        node_mapping.inputs['Rotation'].default_value[2] = self.rotate_z
+        node_bg.inputs['Strength'].default_value = self.intensity
+        
+        nt.links.new(node_coord.outputs['Generated'], node_mapping.inputs['Vector'])
+        nt.links.new(node_mapping.outputs['Vector'], node_tex.inputs['Vector'])
+        nt.links.new(node_tex.outputs['Color'], node_bg.inputs['Color'])
+        nt.links.new(node_bg.outputs['Background'], node_out.inputs['Surface'])
+        
+        # 5. Swap World and engine settings
+        self.scene.world = self.temp_world
+        self.scene.render.engine = 'BLENDER_EEVEE'
+        if hasattr(self.scene, "eevee") and hasattr(self.scene.eevee, "taa_render_samples"):
+            self.scene.eevee.taa_render_samples = 4
+            
+        # 6. Optionally hide physical scene lights
+        if not self.use_scene_lights:
+            for obj in self.scene.objects:
+                if obj.type == 'LIGHT':
+                    self.hidden_lights.append((obj, obj.hide_render))
+                    obj.hide_render = True
+                    
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Restore scene lights
+        for obj, orig_hide in self.hidden_lights:
+            try:
+                obj.hide_render = orig_hide
+            except Exception as e:
+                print(f"utils: Warning restoring hide_render for object '{obj.name}': {e}")
+                
+        # Restore original world, engine and EEVEE samples
+        try:
+            self.scene.world = self.orig_world
+        except Exception as e:
+            print(f"utils: Warning restoring original world: {e}")
+            
+        try:
+            self.scene.render.engine = self.orig_engine
+        except Exception as e:
+            print(f"utils: Warning restoring original render engine: {e}")
+            
+        if self.orig_samples is not None and hasattr(self.scene, "eevee") and hasattr(self.scene.eevee, "taa_render_samples"):
+            try:
+                self.scene.eevee.taa_render_samples = self.orig_samples
+            except Exception as e:
+                print(f"utils: Warning restoring original EEVEE samples: {e}")
+
+

@@ -6,3 +6,7 @@
 
 # archive
 *.zip
+
+# Python cache
+__pycache__/
+*.pyc
