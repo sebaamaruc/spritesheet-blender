@@ -26,6 +26,8 @@ UI_LAYOUT = {
     'buttons_in_header': True  # Set to False to display toolbar buttons at the bottom (footer)
 }
 
+TRACKPAD_SCROLL_SCALE = 3.0
+
 
 
 class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
@@ -153,9 +155,10 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         self.margin_bottom = self.y_footer_height
         self.viewer_height = self.y_viewer_height
             
-        # Grid parameters: dynamic columns based on avail_width
-        cols = max(1, (self.avail_width - 40) // (self.cell_w + self.padding))
-        margin_left = self.x_start + (self.avail_width - (cols * (self.cell_w + self.padding) - self.padding)) // 2
+        # Grid parameters: dynamic columns based on avail_width (reserving space for scrollbar on the right)
+        grid_avail_width = self.avail_width - 24
+        cols = max(1, (grid_avail_width - 40) // (self.cell_w + self.padding))
+        margin_left = self.x_start + (grid_avail_width - (cols * (self.cell_w + self.padding) - self.padding)) // 2
         
         rows = (n_frames + cols - 1) // cols
         grid_h = rows * (self.cell_h + self.padding) - self.padding
@@ -515,8 +518,62 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
             
         # Restore color mask to default
         gpu.state.color_mask_set(True, True, True, True)
+        
+        # 3. Draw Scrollbar (if content overflows)
+        if self.max_scroll_y > 0:
+            scrollbar_w = 14
+            track_x = self.x_start + self.avail_width - scrollbar_w - 6
+            track_y = self.y_grid_start + 10
+            track_h = self.y_grid_height - 20
             
-        # 3. Draw Playback Viewer (if enabled)
+            # Draw track background: very dark semi-transparent grey (Blender aesthetic)
+            self.draw_rect(track_x, track_y, scrollbar_w, track_h, (0.07, 0.07, 0.07, 0.9))
+            
+            # Subtle inset border for the track to match Blender theme
+            self.draw_rect(track_x, track_y, scrollbar_w, 1, (0.15, 0.15, 0.15, 1.0)) # Top
+            self.draw_rect(track_x, track_y + track_h - 1, scrollbar_w, 1, (0.15, 0.15, 0.15, 1.0)) # Bottom
+            self.draw_rect(track_x, track_y, 1, track_h, (0.15, 0.15, 0.15, 1.0)) # Left
+            self.draw_rect(track_x + scrollbar_w - 1, track_y, 1, track_h, (0.15, 0.15, 0.15, 1.0)) # Right
+            
+            # Proportional thumb height calculation
+            cols = max(1, ((self.avail_width - 24) - 40) // (self.cell_w + self.padding))
+            rows = (len(clip.frames) + cols - 1) // cols
+            grid_h = rows * (self.cell_h + self.padding) - self.padding
+            display_h = self.y_grid_height - 20
+            
+            thumb_h = (display_h / grid_h) * track_h
+            thumb_h = max(30, min(track_h, thumb_h))
+            
+            # Position thumb matching scroll offset
+            scroll_ratio = self.scroll_y / self.max_scroll_y
+            thumb_y = track_y + (track_h - thumb_h) - scroll_ratio * (track_h - thumb_h)
+            
+            # Determine hover/active state and color
+            is_hovered = (track_x <= self.mouse_x <= track_x + scrollbar_w) and (thumb_y <= self.mouse_y <= thumb_y + thumb_h)
+            
+            if self.is_dragging_scrollbar:
+                thumb_color = (0.48, 0.48, 0.48, 1.0) # Active drag: brighter grey
+                highlight_color = (0.6, 0.6, 0.6, 1.0)
+                shadow_color = (0.22, 0.22, 0.22, 1.0)
+            elif is_hovered:
+                thumb_color = (0.35, 0.35, 0.35, 1.0) # Hover: medium grey
+                highlight_color = (0.45, 0.45, 0.45, 1.0)
+                shadow_color = (0.18, 0.18, 0.18, 1.0)
+            else:
+                thumb_color = (0.24, 0.24, 0.24, 1.0) # Idle: darker grey
+                highlight_color = (0.32, 0.32, 0.32, 1.0)
+                shadow_color = (0.12, 0.12, 0.12, 1.0)
+                
+            # Draw thumb
+            self.draw_rect(track_x, thumb_y, scrollbar_w, thumb_h, thumb_color)
+            
+            # Draw 3D bevel / highlights on the thumb to look native/premium
+            self.draw_rect(track_x, thumb_y, scrollbar_w, 1, highlight_color) # Top highlight
+            self.draw_rect(track_x, thumb_y, 1, thumb_h, highlight_color) # Left highlight
+            self.draw_rect(track_x + scrollbar_w - 1, thumb_y, 1, thumb_h, shadow_color) # Right shadow
+            self.draw_rect(track_x, thumb_y + thumb_h - 1, scrollbar_w, 1, shadow_color) # Bottom shadow
+            
+        # 4. Draw Playback Viewer (if enabled)
         self.draw_playback_viewer(width, height, clip)
 
         # 4. Draw Header/Footer (drawn last so they are on top of cells during scroll)
@@ -734,8 +791,8 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
             return {'CANCELLED'}
             
         self._handle = None
-        self.mouse_x = 0
-        self.mouse_y = 0
+        self.mouse_x = event.mouse_region_x
+        self.mouse_y = event.mouse_region_y
         
         # Grid parameters
         self.cell_w = 80
@@ -749,9 +806,19 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         self.y_start = 0
         self.avail_height = 100
         
-        # Scroll offset
+        # Scroll offset and limits
         self.scroll_y = 0
         self.max_scroll_y = 0
+        
+        # Scrollbar dragging state
+        self.is_dragging_scrollbar = False
+        self.scrollbar_drag_start_y = 0
+        self.scrollbar_drag_start_scroll_y = 0
+        
+        # Grid panning state (MMB drag navigation)
+        self.is_panning = False
+        self.pan_start_y = 0
+        self.pan_start_scroll_y = 0
         
         # Drag selection state
         self.is_dragging = False
@@ -796,16 +863,43 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         height = context.region.height
         layout_items = self.get_visible_frames_layout(width, height, clip, context)
         
+        # Calculate grid parameters for scrolling math
+        cols = max(1, ((self.avail_width - 24) - 40) // (self.cell_w + self.padding))
+        rows = (len(clip.frames) + cols - 1) // cols
+        grid_h = rows * (self.cell_h + self.padding) - self.padding
+        display_h = self.y_grid_height - 20
+        
+        track_y = self.y_grid_start + 10
+        track_h = self.y_grid_height - 20
+        scrollbar_w = 14
+        track_x = self.x_start + self.avail_width - scrollbar_w - 6
+        
+        thumb_h = (display_h / grid_h) * track_h if grid_h > 0 else track_h
+        thumb_h = max(30, min(track_h, thumb_h))
+        
         # Mouse movement tracking
         if event.type == 'MOUSEMOVE':
             self.mouse_x = event.mouse_region_x
             self.mouse_y = event.mouse_region_y
             
-            # Find hovered item
+            # 1. Handle Scrollbar Dragging (independent of cursor boundary exit)
+            if self.is_dragging_scrollbar:
+                if track_h > thumb_h:
+                    delta_y = event.mouse_region_y - self.scrollbar_drag_start_y
+                    delta_scroll = - (delta_y / (track_h - thumb_h)) * self.max_scroll_y
+                    self.scroll_y = max(0, min(self.scrollbar_drag_start_scroll_y + delta_scroll, self.max_scroll_y))
+                return {'RUNNING_MODAL'}
+                
+            # 2. Handle Grid Panning (MMB drag navigation)
+            elif self.is_panning:
+                delta_y = event.mouse_region_y - self.pan_start_y
+                self.scroll_y = max(0, min(self.pan_start_scroll_y + delta_y, self.max_scroll_y))
+                return {'RUNNING_MODAL'}
+                
+            # 3. Handle Card Drag Selection
             hovered_idx = self.hit_test(self.mouse_x, self.mouse_y, layout_items)
             self.last_hovered_idx = hovered_idx
             
-            # Paint selection/deselection on drag
             if self.is_dragging and hovered_idx != -1 and self.drag_action is not None:
                 frame_item = clip.frames[hovered_idx]
                 if self.drag_action == 'SELECT':
@@ -818,7 +912,29 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         # Left click
         elif event.type == 'LEFTMOUSE':
             if event.value == 'PRESS':
-                # Check header buttons first
+                # Check scrollbar track and thumb click first
+                if self.max_scroll_y > 0:
+                    scroll_ratio = self.scroll_y / self.max_scroll_y
+                    thumb_y = track_y + (track_h - thumb_h) - scroll_ratio * (track_h - thumb_h)
+                    
+                    # Click on scrollbar thumb
+                    if (track_x <= event.mouse_region_x <= track_x + scrollbar_w) and (thumb_y <= event.mouse_region_y <= thumb_y + thumb_h):
+                        self.is_dragging_scrollbar = True
+                        self.scrollbar_drag_start_y = event.mouse_region_y
+                        self.scrollbar_drag_start_scroll_y = self.scroll_y
+                        return {'RUNNING_MODAL'}
+                        
+                    # Click on scrollbar track (jump and drag)
+                    elif (track_x <= event.mouse_region_x <= track_x + scrollbar_w) and (track_y <= event.mouse_region_y <= track_y + track_h):
+                        if track_h > thumb_h:
+                            click_ratio = 1.0 - (event.mouse_region_y - track_y - thumb_h / 2.0) / (track_h - thumb_h)
+                            self.scroll_y = max(0, min(click_ratio * self.max_scroll_y, self.max_scroll_y))
+                        self.is_dragging_scrollbar = True
+                        self.scrollbar_drag_start_y = event.mouse_region_y
+                        self.scrollbar_drag_start_scroll_y = self.scroll_y
+                        return {'RUNNING_MODAL'}
+                        
+                # Check header buttons
                 buttons = self.get_header_buttons(width, height, clip)
                 for btn in buttons:
                     if (btn['x_min'] <= event.mouse_region_x <= btn['x_max']) and (btn['y_min'] <= event.mouse_region_y <= btn['y_max']):
@@ -828,82 +944,128 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
                         self.execute_header_button(context, btn['id'], clip)
                         return {'RUNNING_MODAL'}
                         
-                # Click grid items
+                # Click grid items (not on scrollbar or header buttons)
                 clicked_idx = self.hit_test(event.mouse_region_x, event.mouse_region_y, layout_items)
                 if clicked_idx != -1:
                     frame_item = clip.frames[clicked_idx]
-                    # Start paint drag stroke
                     self.is_dragging = True
-                    # Toggle and set drag stroke action
                     frame_item.selected = not frame_item.selected
                     self.drag_action = 'SELECT' if frame_item.selected else 'DESELECT'
-                else:
-                    # Clicked outside cards (e.g. background)
-                    pass
+                    
             elif event.value == 'RELEASE':
                 self.is_dragging = False
                 self.drag_action = None
+                self.is_dragging_scrollbar = False
             return {'RUNNING_MODAL'}
             
-        # Scroll wheel (vertical scroll)
+        # Middle click (MMB grid panning)
+        elif event.type == 'MIDDLEMOUSE':
+            if event.value == 'PRESS':
+                self.is_panning = True
+                self.pan_start_y = event.mouse_region_y
+                self.pan_start_scroll_y = self.scroll_y
+            elif event.value == 'RELEASE':
+                self.is_panning = False
+            return {'RUNNING_MODAL'}
+            
+        # Scroll wheel (vertical scroll step based on row height)
         elif event.type == 'WHEELUPMOUSE':
-            self.scroll_y = max(0, self.scroll_y - 40)
+            step = self.cell_h + self.padding
+            if event.shift:
+                step *= 5 # Shift acceleration: scroll 5 rows
+            self.scroll_y = max(0, self.scroll_y - step)
             return {'RUNNING_MODAL'}
+            
         elif event.type == 'WHEELDOWNMOUSE':
-            self.scroll_y = min(self.max_scroll_y, self.scroll_y + 40)
+            step = self.cell_h + self.padding
+            if event.shift:
+                step *= 5 # Shift acceleration: scroll 5 rows
+            self.scroll_y = min(self.max_scroll_y, self.scroll_y + step)
             return {'RUNNING_MODAL'}
             
-        # Keyboard shortcuts — event.type is the key itself ('A', 'D', etc.)
-        elif event.type == 'A' and event.value == 'PRESS':
-            for f in clip.frames:
-                f.selected = True
-            self.report({'INFO'}, "Selected all frames")
+        elif event.type == 'TRACKPADPAN':
+            # Calculate trackpad displacement.
+            # event.mouse_y is the warp reference point, event.mouse_prev_y is the virtual displacement.
+            delta_y = event.mouse_y - event.mouse_prev_y
+            self.scroll_y = max(0, min(self.scroll_y + delta_y * TRACKPAD_SCROLL_SCALE, self.max_scroll_y))
             return {'RUNNING_MODAL'}
             
-        elif event.type == 'D' and event.value == 'PRESS':
-            for f in clip.frames:
-                f.selected = False
-            if self.is_playing:
+        # Keyboard shortcuts and Navigation
+        elif event.value == 'PRESS':
+            if event.type == 'PAGE_UP':
+                self.scroll_y = max(0, self.scroll_y - display_h)
+                return {'RUNNING_MODAL'}
+                
+            elif event.type == 'PAGE_DOWN':
+                self.scroll_y = min(self.max_scroll_y, self.scroll_y + display_h)
+                return {'RUNNING_MODAL'}
+                
+            elif event.type == 'HOME':
+                self.scroll_y = 0
+                if event.ctrl:
+                    self.report({'INFO'}, "Scrolled to top (Ctrl+Home)")
+                else:
+                    self.report({'INFO'}, "Scrolled to top")
+                return {'RUNNING_MODAL'}
+                
+            elif event.type == 'END':
+                self.scroll_y = self.max_scroll_y
+                if event.ctrl:
+                    self.report({'INFO'}, "Scrolled to bottom (Ctrl+End)")
+                else:
+                    self.report({'INFO'}, "Scrolled to bottom")
+                return {'RUNNING_MODAL'}
+                
+            elif event.type == 'A':
+                for f in clip.frames:
+                    f.selected = True
+                self.report({'INFO'}, "Selected all frames")
+                return {'RUNNING_MODAL'}
+                
+            elif event.type == 'D':
+                for f in clip.frames:
+                    f.selected = False
+                if self.is_playing:
+                    self.toggle_playback(clip)
+                self.report({'INFO'}, "Deselected all frames")
+                return {'RUNNING_MODAL'}
+                
+            elif event.type == 'I':
+                for f in clip.frames:
+                    f.selected = not f.selected
+                self.report({'INFO'}, "Inverted selection")
+                return {'RUNNING_MODAL'}
+                
+            elif event.type == 'SPACE':
                 self.toggle_playback(clip)
-            self.report({'INFO'}, "Deselected all frames")
-            return {'RUNNING_MODAL'}
-            
-        elif event.type == 'I' and event.value == 'PRESS':
-            for f in clip.frames:
-                f.selected = not f.selected
-            self.report({'INFO'}, "Inverted selection")
-            return {'RUNNING_MODAL'}
-            
-        elif event.type == 'SPACE' and event.value == 'PRESS':
-            self.toggle_playback(clip)
-            return {'RUNNING_MODAL'}
-            
-        elif event.type == 'LEFT_ARROW' and event.value == 'PRESS':
-            if event.shift:
-                self.jump_to_selected_frame(clip, 'FIRST')
-            else:
-                self.step_playback(clip, -1)
-            return {'RUNNING_MODAL'}
-            
-        elif event.type == 'RIGHT_ARROW' and event.value == 'PRESS':
-            if event.shift:
-                self.jump_to_selected_frame(clip, 'LAST')
-            else:
-                self.step_playback(clip, 1)
-            return {'RUNNING_MODAL'}
-            
-        elif event.type == 'N' and event.value == 'PRESS':
-            if not hasattr(self, '_every_n_state'):
-                self._every_n_state = 2
-            else:
-                self._every_n_state = (self._every_n_state % 5) + 1
-                if self._every_n_state == 1:
+                return {'RUNNING_MODAL'}
+                
+            elif event.type == 'LEFT_ARROW':
+                if event.shift:
+                    self.jump_to_selected_frame(clip, 'FIRST')
+                else:
+                    self.step_playback(clip, -1)
+                return {'RUNNING_MODAL'}
+                
+            elif event.type == 'RIGHT_ARROW':
+                if event.shift:
+                    self.jump_to_selected_frame(clip, 'LAST')
+                else:
+                    self.step_playback(clip, 1)
+                return {'RUNNING_MODAL'}
+                
+            elif event.type == 'N':
+                if not hasattr(self, '_every_n_state'):
                     self._every_n_state = 2
-            for i, f in enumerate(clip.frames):
-                f.selected = (i % self._every_n_state == 0)
-            self.report({'INFO'}, f"Selected every {self._every_n_state} frames")
-            return {'RUNNING_MODAL'}
-                    
+                else:
+                    self._every_n_state = (self._every_n_state % 5) + 1
+                    if self._every_n_state == 1:
+                        self._every_n_state = 2
+                for i, f in enumerate(clip.frames):
+                    f.selected = (i % self._every_n_state == 0)
+                self.report({'INFO'}, f"Selected every {self._every_n_state} frames")
+                return {'RUNNING_MODAL'}
+                
         # Close modal: ESC or Right Click
         elif event.type in {'ESC', 'RIGHTMOUSE'}:
             self.close_modal(context)
