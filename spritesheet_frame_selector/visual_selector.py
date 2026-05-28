@@ -710,6 +710,24 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
             if n_frames > 0:
                 self.playback_index = (self.playback_index + direction) % n_frames
 
+    def jump_to_selected_frame(self, clip, target):
+        """Jumps directly to the first or last selected frame in the active clip"""
+        selected_indices = [i for i, f in enumerate(clip.frames) if f.selected]
+        if not selected_indices:
+            return
+            
+        if target == 'FIRST':
+            idx_pos = 0
+        else: # 'LAST'
+            idx_pos = len(selected_indices) - 1
+            
+        # If playing, pause first
+        if self.is_playing:
+            self.toggle_playback(clip)
+            
+        self._playback_list_pos = idx_pos
+        self.playback_index = selected_indices[idx_pos]
+
     def invoke(self, context, event):
         if context.area.type != 'VIEW_3D':
             self.report({'WARNING'}, "Operator must be run from a 3D Viewport")
@@ -861,11 +879,17 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
             return {'RUNNING_MODAL'}
             
         elif event.type == 'LEFT_ARROW' and event.value == 'PRESS':
-            self.step_playback(clip, -1)
+            if event.shift:
+                self.jump_to_selected_frame(clip, 'FIRST')
+            else:
+                self.step_playback(clip, -1)
             return {'RUNNING_MODAL'}
             
         elif event.type == 'RIGHT_ARROW' and event.value == 'PRESS':
-            self.step_playback(clip, 1)
+            if event.shift:
+                self.jump_to_selected_frame(clip, 'LAST')
+            else:
+                self.step_playback(clip, 1)
             return {'RUNNING_MODAL'}
             
         elif event.type == 'N' and event.value == 'PRESS':
