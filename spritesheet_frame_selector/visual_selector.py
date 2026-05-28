@@ -204,13 +204,19 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
 
     def draw_rect(self, x, y, w, h, color):
         """Draws a solid colored rectangle"""
-        shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-        vertices = ((x, y), (x + w, y), (x + w, y + h), (x, y + h))
-        indices = ((0, 1, 2), (2, 3, 0))
-        batch = batch_for_shader(shader, 'TRIS', {"pos": vertices}, indices=indices)
-        shader.bind()
-        shader.uniform_float("color", color)
-        batch.draw(shader)
+        if not hasattr(self, '_rect_shader'):
+            self._rect_shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+            vertices = ((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0))
+            indices = ((0, 1, 2), (2, 3, 0))
+            self._rect_batch = batch_for_shader(self._rect_shader, 'TRIS', {"pos": vertices}, indices=indices)
+            
+        gpu.matrix.push()
+        gpu.matrix.translate((x, y))
+        gpu.matrix.scale((w, h))
+        self._rect_shader.bind()
+        self._rect_shader.uniform_float("color", color)
+        self._rect_batch.draw(self._rect_shader)
+        gpu.matrix.pop()
 
     def get_header_buttons(self, width, height, clip):
         buttons = []
@@ -990,6 +996,13 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
             self.scroll_y = max(0, min(self.scroll_y + delta_y * TRACKPAD_SCROLL_SCALE, self.max_scroll_y))
             return {'RUNNING_MODAL'}
             
+        # Close modal: ESC or Right Click
+        elif event.type in {'ESC', 'RIGHTMOUSE'}:
+            if event.value == 'PRESS':
+                self.close_modal(context)
+                return {'FINISHED'}
+            return {'RUNNING_MODAL'}
+            
         # Keyboard shortcuts and Navigation
         elif event.value == 'PRESS':
             if event.type == 'PAGE_UP':
@@ -1066,9 +1079,4 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
                 self.report({'INFO'}, f"Selected every {self._every_n_state} frames")
                 return {'RUNNING_MODAL'}
                 
-        # Close modal: ESC or Right Click
-        elif event.type in {'ESC', 'RIGHTMOUSE'}:
-            self.close_modal(context)
-            return {'FINISHED'}
-            
         return {'RUNNING_MODAL'}
