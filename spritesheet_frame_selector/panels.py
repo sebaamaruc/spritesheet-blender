@@ -130,6 +130,9 @@ class SPRITESHEET_PT_preview(bpy.types.Panel):
         row.operator("spritesheet.refresh_preview", text="Refresh", icon='FILE_REFRESH')
         row.operator("spritesheet.clear_cache", text="Clear Cache", icon='TRASH')
         
+        row = layout.row()
+        row.label(text="Previews use current viewport shading.", icon='INFO')
+        
         # Status display
         total_frames = ((clip.frame_end - clip.frame_start) // clip.frame_step) + 1
         cached_frames = len(clip.frames)

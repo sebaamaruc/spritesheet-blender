@@ -40,13 +40,10 @@ def generate_clip_previews(clip, context):
     """Generates preview thumbnails for all frames in the clip's range.
     Preserves selection state of existing frames.
     
-    NOTE ON SHADING MODE LIMITATION:
-    Currently, the OpenGL/viewport render used for previews inherits the shading mode
-    (Solid, Material Preview, Rendered, etc.) of the active 3D viewport.
-    This is a known limitation. In the future, this generator can be expanded to force 
-    a specific shading mode by overriding the active space shading properties:
-        active_space.shading.type = 'SOLID'  # e.g., to force solid view
-    For now, it maintains the current shading mode of the active viewport.
+    This uses Blender's production render engine (Option B) to render EEVEE/Workbench 
+    previews off-screen without viewport flickering. This may be slightly slower than 
+    OpenGL rendering (especially for Cycles in Rendered mode), but is extremely stable, 
+    clean, and respects the active viewport's shading mode.
     """
     scene = context.scene
     render = scene.render
@@ -61,8 +58,9 @@ def generate_clip_previews(clip, context):
     cache_dir = get_cache_dir(clip)
     os.makedirs(cache_dir, exist_ok=True)
     
-    # 3. Save render settings and collection visibility
+    # 3. Save render settings, engine, and collection visibility
     orig_settings = save_render_settings(scene)
+    orig_engine = scene.render.engine
     from .utils import save_collection_visibility, restore_collection_visibility, apply_clip_visibility
     orig_visibility = save_collection_visibility(context)
     
@@ -106,8 +104,7 @@ def generate_clip_previews(clip, context):
         render.image_settings.color_depth = '8'
         scene.render.film_transparent = True  # Ensure transparent background for previews
         
-        # 5. Identify active SpaceView3D and temporarily disable overlays & gizmos locally
-        # to get clean previews. We only modify the viewport initiating the context to minimize side effects.
+        # 5. Identify active SpaceView3D and inherit its shading mode
         active_space = None
         if context.space_data and context.space_data.type == 'VIEW_3D':
             active_space = context.space_data
@@ -120,29 +117,23 @@ def generate_clip_previews(clip, context):
                     active_space = area.spaces.active
                     break
                     
-        orig_overlays = None
-        orig_gizmos = None
-        
-        if active_space:
-            orig_overlays = active_space.overlay.show_overlays
-            orig_gizmos = active_space.show_gizmo
-            try:
-                active_space.overlay.show_overlays = False
-                active_space.show_gizmo = False
-            except Exception as e:
-                print(f"preview_generator: Error disabling local viewport overlays: {e}")
-                
+        shading_type = 'SOLID'
+        if active_space and hasattr(active_space, 'shading'):
+            shading_type = active_space.shading.type
+            
+        # Temporarily change scene render engine based on viewport shading mode
+        if shading_type in ('WIREFRAME', 'SOLID'):
+            scene.render.engine = 'BLENDER_WORKBENCH'
+        elif shading_type == 'MATERIAL':
+            scene.render.engine = 'BLENDER_EEVEE'
+        elif shading_type == 'RENDERED':
+            # Keep scene's active render engine (EEVEE, Cycles, or Workbench)
+            pass
+            
         frames_to_render = list(range(clip.frame_start, clip.frame_end + 1, clip.frame_step))
         total_frames = len(frames_to_render)
         
         if total_frames == 0:
-            # Restore viewport settings
-            if active_space and orig_overlays is not None:
-                try:
-                    active_space.overlay.show_overlays = orig_overlays
-                    active_space.show_gizmo = orig_gizmos
-                except:
-                    pass
             restore_render_settings(scene, orig_settings)
             clip.cache_dirty = True
             return False
@@ -159,9 +150,9 @@ def generate_clip_previews(clip, context):
                 filepath = os.path.join(cache_dir, f"frame_{frame_num:05d}.png")
                 render.filepath = filepath
                 
-                # Render OpenGL preview (viewport render using active camera but view_context=False
-                # so that it does not visually snap the user's viewport perspective view)
-                bpy.ops.render.opengl(write_still=True, view_context=False)
+                # Perform standard render (EEVEE / Workbench / Cycles) off-screen
+                # write_still=True writes the output directly to disk
+                bpy.ops.render.render(write_still=True)
                 
                 # Add to frames collection
                 item = clip.frames.add()
@@ -177,24 +168,17 @@ def generate_clip_previews(clip, context):
             
         except Exception as e:
             print(f"Error generating previews: {str(e)}")
-            # If something goes wrong, we mark cache dirty
             clip.cache_dirty = True
             raise e
             
         finally:
             # End progress
             context.window_manager.progress_end()
-            # Restore viewport settings local to the active space
-            if active_space and orig_overlays is not None:
-                try:
-                    active_space.overlay.show_overlays = orig_overlays
-                    active_space.show_gizmo = orig_gizmos
-                except:
-                    pass
             # ALWAYS restore settings
             restore_render_settings(scene, orig_settings)
             
         return True
     finally:
-        # ALWAYS restore collection visibility
+        # ALWAYS restore original engine and collection visibility
+        scene.render.engine = orig_engine
         restore_collection_visibility(context, orig_visibility)
