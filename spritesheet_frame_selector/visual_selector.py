@@ -423,11 +423,18 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         clip = context.scene.spritesheet_clips[context.scene.active_clip_index]
         layout_items = self.get_visible_frames_layout(width, height, clip, context)
         
-        # Enable alpha blending for transparent overlays
-        gpu.state.blend_set('ALPHA')
+        # Force GPU depth test and depth mask state for 2D UI drawing
+        gpu.state.depth_test_set('NONE')
+        gpu.state.depth_mask_set(False)
         
-        # 1. Dark overlay background strictly within the available Viewport space
-        self.draw_rect(self.x_start, self.y_start, self.avail_width, self.avail_height, (0.06, 0.06, 0.06, 0.99))
+        # Disable blending for the solid main background to block the 3D viewport completely
+        gpu.state.blend_set('NONE')
+        
+        # Draw solid dark main background covering the entire selector area
+        self.draw_rect(self.x_start, self.y_start, self.avail_width, self.avail_height, (0.06, 0.06, 0.06, 0.98))
+        
+        # Re-enable alpha blending for subsequent textured/text elements
+        gpu.state.blend_set('ALPHA')
         
         # 2. Draw Grid Items
         selected_count = 0
@@ -474,7 +481,10 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
             if img:
                 try:
                     texture = gpu.texture.from_image(img)
+                    # Disable writing to alpha channel to prevent transparent pixels from clearing the opaque cell background alpha
+                    gpu.state.color_mask_set(True, True, True, False)
                     draw_texture_2d(texture, (thumb_x, thumb_y), thumb_w, thumb_h)
+                    gpu.state.color_mask_set(True, True, True, True)
                 except Exception as e:
                     # Draw placeholder gray box
                     self.draw_rect(thumb_x, thumb_y, thumb_w, thumb_h, (0.25, 0.25, 0.25, 1.0))
@@ -516,7 +526,8 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         # 4. Draw Header/Footer (drawn last so they are on top of cells during scroll)
         self.draw_header_footer(width, height, clip, selected_count, len(clip.frames))
         
-        # Restore blending state
+        # Restore GPU states to default
+        gpu.state.depth_mask_set(True)
         gpu.state.blend_set('NONE')
 
     def draw_playback_viewer(self, width, height, clip):
@@ -564,7 +575,10 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         if img:
             try:
                 texture = gpu.texture.from_image(img)
+                # Disable writing to alpha channel to prevent transparent pixels from clearing the opaque viewer background alpha
+                gpu.state.color_mask_set(True, True, True, False)
                 draw_texture_2d(texture, (preview_x, preview_y), preview_sz, preview_sz)
+                gpu.state.color_mask_set(True, True, True, True)
             except Exception as e:
                 self.draw_rect(preview_x, preview_y, preview_sz, preview_sz, (0.25, 0.25, 0.25, 1.0))
         else:
