@@ -26,6 +26,11 @@ class SpriteSheetClip(bpy.types.PropertyGroup):
         name="Clip Name",
         default="Clip"
     )
+    include_in_export: bpy.props.BoolProperty(
+        name="Include in Export",
+        description="Include this clip in the final spritesheet export",
+        default=False
+    )
     frame_start: bpy.props.IntProperty(
         name="Start Frame",
         default=1,

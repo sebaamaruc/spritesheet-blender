@@ -6,6 +6,7 @@ class SPRITESHEET_UL_clip_list(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
+            row.prop(item, "include_in_export", text="")
             row.label(icon='ACTION')
             row.prop(item, "name", text="", emboss=False)
             
@@ -208,8 +209,8 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
         layout.prop(export_settings, "export_png_sequence", text="Export individual PNG sequence")
         
         # Stats & Verification
-        selected_frames = [f for f in clip.frames if f.selected]
-        n_selected = len(selected_frames)
+        clips_to_export = [c for c in scene.spritesheet_clips if c.include_in_export]
+        n_selected = sum(sum(1 for f in c.frames if f.selected) for c in clips_to_export)
         
         if n_selected > 0:
             rows, width, height = calculate_sheet_dimensions(
@@ -223,6 +224,8 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
             
             box = layout.box()
             box.label(text="Estimated Output Details", icon='INFO')
+            box.label(text=f"Clips Included: {len(clips_to_export)}")
+            box.label(text=f"Total Frames: {n_selected}")
             box.label(text=f"Grid: {export_settings.columns} col x {rows} rows")
             box.label(text=f"Resolution: {width} x {height} px")
             

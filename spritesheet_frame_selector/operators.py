@@ -283,7 +283,7 @@ class SPRITESHEET_OT_open_visual_selector(bpy.types.Operator):
 class SPRITESHEET_OT_export_clip(bpy.types.Operator):
     bl_idname = "spritesheet.export_clip"
     bl_label = "Export SpriteSheet"
-    bl_description = "Export active clip frames to a spritesheet"
+    bl_description = "Export active/selected clips to a spritesheet"
     bl_options = {'REGISTER'}
 
     @classmethod
@@ -291,15 +291,11 @@ class SPRITESHEET_OT_export_clip(bpy.types.Operator):
         scene = context.scene
         if len(scene.spritesheet_clips) == 0:
             return False
-        idx = scene.active_clip_index
-        if idx < 0 or idx >= len(scene.spritesheet_clips):
-            return False
-        clip = scene.spritesheet_clips[idx]
-        return any(f.selected for f in clip.frames)
+        return any(c.include_in_export and any(f.selected for f in c.frames) for c in scene.spritesheet_clips)
 
     def execute(self, context):
         from .utils import validate_export_settings
-        from .exporter import export_single_clip
+        from .exporter import export_multiple_clips
         
         scene = context.scene
         is_valid, err_msg = validate_export_settings(scene)
@@ -307,12 +303,12 @@ class SPRITESHEET_OT_export_clip(bpy.types.Operator):
             self.report({'ERROR'}, err_msg)
             return {'CANCELLED'}
         
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        clips = list(scene.spritesheet_clips)
         export_settings = scene.spritesheet_export
         
-        success = export_single_clip(clip, export_settings, context)
+        success = export_multiple_clips(clips, export_settings, context)
         if success:
-            self.report({'INFO'}, f"Export completed successfully for clip '{clip.name}'!")
+            self.report({'INFO'}, "Export completed successfully!")
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, "Export failed. Check console for details.")

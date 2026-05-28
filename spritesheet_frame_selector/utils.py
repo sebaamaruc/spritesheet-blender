@@ -72,16 +72,20 @@ def validate_export_settings(scene):
     if len(scene.spritesheet_clips) == 0:
         return False, "No animation clips defined. Add a clip first."
     
-    clip_idx = scene.active_clip_index
-    if clip_idx < 0 or clip_idx >= len(scene.spritesheet_clips):
-        return False, "No active clip selected."
+    # Get all clips marked for export
+    clips_to_export = [c for c in scene.spritesheet_clips if c.include_in_export]
+    if not clips_to_export:
+        return False, "No clips marked for export. Check 'Include in Export' on at least one clip."
         
-    clip = scene.spritesheet_clips[clip_idx]
-    
-    # Check if there are frames
-    selected_frames = [f for f in clip.frames if f.selected]
-    if not selected_frames:
-        return False, "No frames selected for export. Open the Visual Selector and select frames."
+    # Check if there are any frames selected across the included clips
+    has_selected_frames = False
+    for clip in clips_to_export:
+        if any(f.selected for f in clip.frames):
+            has_selected_frames = True
+            break
+            
+    if not has_selected_frames:
+        return False, "No frames selected for export in any of the included clips. Open the Visual Selector and select frames."
         
     # Check export settings pointer
     export_settings = scene.spritesheet_export
@@ -105,12 +109,15 @@ def validate_export_settings(scene):
         except Exception as e:
             return False, f"Could not create output directory: {str(e)}"
             
-    # Check camera override or active camera
-    cam = clip.camera if clip.camera else scene.camera
-    if not cam:
-        return False, "No active camera or camera override. Please select a camera in the viewport or clip settings."
-        
-    if cam.type != 'CAMERA':
-        return False, f"Selected object '{cam.name}' is not a camera."
-        
+    # Check camera override or active camera for each clip with selected frames
+    for clip in clips_to_export:
+        if not any(f.selected for f in clip.frames):
+            continue
+        cam = clip.camera if clip.camera else scene.camera
+        if not cam:
+            return False, f"No active camera or camera override for clip '{clip.name}'."
+            
+        if cam.type != 'CAMERA':
+            return False, f"Selected object '{cam.name}' for clip '{clip.name}' is not a camera."
+            
     return True, ""
