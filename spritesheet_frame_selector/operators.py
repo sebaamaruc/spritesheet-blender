@@ -91,6 +91,12 @@ class SPRITESHEET_OT_duplicate_clip(bpy.types.Operator):
         dst.fps = src.fps
         dst.playback_loop = src.playback_loop
         
+        # Copy included_collections
+        for src_item in src.included_collections:
+            dst_item = dst.included_collections.add()
+            dst_item.collection = src_item.collection
+            dst_item.collection_name = src_item.collection_name
+            
         # We don't copy cached frames preview paths as we want to regenerate them, 
         # but we can copy the selection states if frames exists.
         if len(src.frames) > 0:
@@ -289,9 +295,7 @@ class SPRITESHEET_OT_export_clip(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         scene = context.scene
-        if len(scene.spritesheet_clips) == 0:
-            return False
-        return any(c.include_in_export and any(f.selected for f in c.frames) for c in scene.spritesheet_clips)
+        return len(scene.spritesheet_clips) > 0
 
     def execute(self, context):
         from .utils import validate_export_settings
@@ -344,6 +348,50 @@ class SPRITESHEET_OT_set_playback_fps(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class SPRITESHEET_OT_add_included_collection(bpy.types.Operator):
+    bl_idname = "spritesheet.add_included_collection"
+    bl_label = "Add Included Collection"
+    bl_description = "Add a collection to the visibility whitelist for this clip"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (len(scene.spritesheet_clips) > 0 
+                and 0 <= scene.active_clip_index < len(scene.spritesheet_clips))
+
+    def execute(self, context):
+        scene = context.scene
+        clip = scene.spritesheet_clips[scene.active_clip_index]
+        clip.included_collections.add()
+        clip.cache_dirty = True
+        return {'FINISHED'}
+
+
+class SPRITESHEET_OT_remove_included_collection(bpy.types.Operator):
+    bl_idname = "spritesheet.remove_included_collection"
+    bl_label = "Remove Included Collection"
+    bl_description = "Remove a collection from the visibility whitelist for this clip"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    index: bpy.props.IntProperty(name="Index")
+
+    @classmethod
+    def poll(cls, context):
+        scene = context.scene
+        return (len(scene.spritesheet_clips) > 0 
+                and 0 <= scene.active_clip_index < len(scene.spritesheet_clips))
+
+    def execute(self, context):
+        scene = context.scene
+        clip = scene.spritesheet_clips[scene.active_clip_index]
+        if 0 <= self.index < len(clip.included_collections):
+            clip.included_collections.remove(self.index)
+            clip.cache_dirty = True
+            return {'FINISHED'}
+        return {'CANCELLED'}
+
+
 classes = (
     SPRITESHEET_OT_set_playback_fps,
     SPRITESHEET_OT_add_clip,
@@ -358,6 +406,8 @@ classes = (
     SPRITESHEET_OT_select_every_n,
     SPRITESHEET_OT_open_visual_selector,
     SPRITESHEET_OT_export_clip,
+    SPRITESHEET_OT_add_included_collection,
+    SPRITESHEET_OT_remove_included_collection,
 )
 
 def register():

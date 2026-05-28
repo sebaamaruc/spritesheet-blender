@@ -85,6 +85,23 @@ class SPRITESHEET_PT_clips(bpy.types.Panel):
             row.prop(clip, "fps", text="FPS")
             
             box.prop(clip, "camera", text="Camera Override")
+            
+            box.separator()
+            box.label(text="Included Collections (Whitelist):", icon='OUTLINER_COLLECTION')
+            
+            col_box = box.column(align=True)
+            for idx, item in enumerate(clip.included_collections):
+                row = col_box.row(align=True)
+                row.prop(item, "collection", text="")
+                
+                if item.collection is None and item.collection_name != "":
+                    row.label(text=f"⚠️ Missing: {item.collection_name}")
+                    
+                op = row.operator("spritesheet.remove_included_collection", text="", icon='REMOVE')
+                op.index = idx
+                
+            row = box.row()
+            row.operator("spritesheet.add_included_collection", text="Add Collection", icon='ADD')
 
 
 class SPRITESHEET_PT_preview(bpy.types.Panel):
@@ -241,16 +258,12 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
         layout.separator()
         layout.scale_y = 1.5
         
-        if is_valid:
-            layout.operator("spritesheet.export_clip", text="EXPORT SPRITESHEET", icon='EXPORT')
-        else:
-            row = layout.row()
-            row.enabled = False
-            row.operator("spritesheet.export_clip", text="EXPORT SPRITESHEET", icon='EXPORT')
-            
+        # Always keep button active
+        layout.operator("spritesheet.export_clip", text="EXPORT SPRITESHEET", icon='EXPORT')
+        
+        if not is_valid:
             # Show validation error message in small font
             box = layout.box()
-            # Wrap text to look good
             col = box.column()
             col.label(text="Cannot Export:")
             col.label(text=f"- {err_msg}")

@@ -61,126 +61,140 @@ def generate_clip_previews(clip, context):
     cache_dir = get_cache_dir(clip)
     os.makedirs(cache_dir, exist_ok=True)
     
-    # 3. Save render settings
+    # 3. Save render settings and collection visibility
     orig_settings = save_render_settings(scene)
-    
-    # Determine target camera with fallbacks
-    target_camera = None
-    if clip.camera:
-        target_camera = clip.camera
-    elif scene.camera:
-        target_camera = scene.camera
-    else:
-        # Fallback to first camera found in scene objects
-        cameras = [obj for obj in scene.objects if obj.type == 'CAMERA']
-        if cameras:
-            target_camera = cameras[0]
-            
-    if not target_camera:
-        print("preview_generator: Error - No camera found in the scene for previews.")
-        restore_render_settings(scene, orig_settings)
-        clip.cache_dirty = True
-        return False
-        
-    # Set active camera override
-    scene.camera = target_camera
-    
-    # 4. Configure render settings for preview
-    size = int(clip.preview_size)
-    render.resolution_x = size
-    render.resolution_y = size
-    render.resolution_percentage = 100
-    render.image_settings.file_format = 'PNG'
-    render.image_settings.color_mode = 'RGBA'
-    render.image_settings.color_depth = '8'
-    scene.render.film_transparent = True  # Ensure transparent background for previews
-    
-    # 5. Identify active SpaceView3D and temporarily disable overlays & gizmos locally
-    # to get clean previews. We only modify the viewport initiating the context to minimize side effects.
-    active_space = None
-    if context.space_data and context.space_data.type == 'VIEW_3D':
-        active_space = context.space_data
-    elif context.area and context.area.type == 'VIEW_3D':
-        active_space = context.area.spaces.active
-    else:
-        # Fallback: search for first 3D View area in current screen
-        for area in context.screen.areas:
-            if area.type == 'VIEW_3D':
-                active_space = area.spaces.active
-                break
-                
-    orig_overlays = None
-    orig_gizmos = None
-    
-    if active_space:
-        orig_overlays = active_space.overlay.show_overlays
-        orig_gizmos = active_space.show_gizmo
-        try:
-            active_space.overlay.show_overlays = False
-            active_space.show_gizmo = False
-        except Exception as e:
-            print(f"preview_generator: Error disabling local viewport overlays: {e}")
-            
-    frames_to_render = list(range(clip.frame_start, clip.frame_end + 1, clip.frame_step))
-    total_frames = len(frames_to_render)
-    
-    if total_frames == 0:
-        # Restore viewport settings
-        if active_space and orig_overlays is not None:
-            try:
-                active_space.overlay.show_overlays = orig_overlays
-                active_space.show_gizmo = orig_gizmos
-            except:
-                pass
-        restore_render_settings(scene, orig_settings)
-        clip.cache_dirty = True
-        return False
-        
-    # Start progress indicator
-    context.window_manager.progress_begin(0, total_frames)
+    from .utils import save_collection_visibility, restore_collection_visibility, apply_clip_visibility
+    orig_visibility = save_collection_visibility(context)
     
     try:
-        for idx, frame_num in enumerate(frames_to_render):
-            # Set frame
-            scene.frame_set(frame_num)
+        # Apply visibility
+        try:
+            apply_clip_visibility(context, clip)
+        except Exception as e:
+            print(f"preview_generator: Visibility error: {e}")
+            clip.cache_dirty = True
+            return False
             
-            # Setup path
-            filepath = os.path.join(cache_dir, f"frame_{frame_num:05d}.png")
-            render.filepath = filepath
+        # Determine target camera with fallbacks
+        target_camera = None
+        if clip.camera:
+            target_camera = clip.camera
+        elif scene.camera:
+            target_camera = scene.camera
+        else:
+            # Fallback to first camera found in scene objects
+            cameras = [obj for obj in scene.objects if obj.type == 'CAMERA']
+            if cameras:
+                target_camera = cameras[0]
+                
+        if not target_camera:
+            print("preview_generator: Error - No camera found in the scene for previews.")
+            restore_render_settings(scene, orig_settings)
+            clip.cache_dirty = True
+            return False
             
-            # Render OpenGL preview (viewport render using active camera but view_context=False
-            # so that it does not visually snap the user's viewport perspective view)
-            bpy.ops.render.opengl(write_still=True, view_context=False)
-            
-            # Add to frames collection
-            item = clip.frames.add()
-            item.frame_number = frame_num
-            item.preview_path = filepath
-            # Restore selection state if it existed before, otherwise default to True
-            item.selected = selection_states.get(frame_num, True)
-            
-            # Update progress
-            context.window_manager.progress_update(idx + 1)
-            
-        clip.cache_dirty = False
+        # Set active camera override
+        scene.camera = target_camera
         
-    except Exception as e:
-        print(f"Error generating previews: {str(e)}")
-        # If something goes wrong, we mark cache dirty
-        clip.cache_dirty = True
-        raise e
+        # 4. Configure render settings for preview
+        size = int(clip.preview_size)
+        render.resolution_x = size
+        render.resolution_y = size
+        render.resolution_percentage = 100
+        render.image_settings.file_format = 'PNG'
+        render.image_settings.color_mode = 'RGBA'
+        render.image_settings.color_depth = '8'
+        scene.render.film_transparent = True  # Ensure transparent background for previews
         
-    finally:
-        # End progress
-        context.window_manager.progress_end()
-        # Restore viewport settings local to the active space
-        if active_space and orig_overlays is not None:
+        # 5. Identify active SpaceView3D and temporarily disable overlays & gizmos locally
+        # to get clean previews. We only modify the viewport initiating the context to minimize side effects.
+        active_space = None
+        if context.space_data and context.space_data.type == 'VIEW_3D':
+            active_space = context.space_data
+        elif context.area and context.area.type == 'VIEW_3D':
+            active_space = context.area.spaces.active
+        else:
+            # Fallback: search for first 3D View area in current screen
+            for area in context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    active_space = area.spaces.active
+                    break
+                    
+        orig_overlays = None
+        orig_gizmos = None
+        
+        if active_space:
+            orig_overlays = active_space.overlay.show_overlays
+            orig_gizmos = active_space.show_gizmo
             try:
-                active_space.overlay.show_overlays = orig_overlays
-                active_space.show_gizmo = orig_gizmos
-            except:
-                pass
-        # ALWAYS restore settings
-        restore_render_settings(scene, orig_settings)
+                active_space.overlay.show_overlays = False
+                active_space.show_gizmo = False
+            except Exception as e:
+                print(f"preview_generator: Error disabling local viewport overlays: {e}")
+                
+        frames_to_render = list(range(clip.frame_start, clip.frame_end + 1, clip.frame_step))
+        total_frames = len(frames_to_render)
         
-    return True
+        if total_frames == 0:
+            # Restore viewport settings
+            if active_space and orig_overlays is not None:
+                try:
+                    active_space.overlay.show_overlays = orig_overlays
+                    active_space.show_gizmo = orig_gizmos
+                except:
+                    pass
+            restore_render_settings(scene, orig_settings)
+            clip.cache_dirty = True
+            return False
+            
+        # Start progress indicator
+        context.window_manager.progress_begin(0, total_frames)
+        
+        try:
+            for idx, frame_num in enumerate(frames_to_render):
+                # Set frame
+                scene.frame_set(frame_num)
+                
+                # Setup path
+                filepath = os.path.join(cache_dir, f"frame_{frame_num:05d}.png")
+                render.filepath = filepath
+                
+                # Render OpenGL preview (viewport render using active camera but view_context=False
+                # so that it does not visually snap the user's viewport perspective view)
+                bpy.ops.render.opengl(write_still=True, view_context=False)
+                
+                # Add to frames collection
+                item = clip.frames.add()
+                item.frame_number = frame_num
+                item.preview_path = filepath
+                # Restore selection state if it existed before, otherwise default to True
+                item.selected = selection_states.get(frame_num, True)
+                
+                # Update progress
+                context.window_manager.progress_update(idx + 1)
+                
+            clip.cache_dirty = False
+            
+        except Exception as e:
+            print(f"Error generating previews: {str(e)}")
+            # If something goes wrong, we mark cache dirty
+            clip.cache_dirty = True
+            raise e
+            
+        finally:
+            # End progress
+            context.window_manager.progress_end()
+            # Restore viewport settings local to the active space
+            if active_space and orig_overlays is not None:
+                try:
+                    active_space.overlay.show_overlays = orig_overlays
+                    active_space.show_gizmo = orig_gizmos
+                except:
+                    pass
+            # ALWAYS restore settings
+            restore_render_settings(scene, orig_settings)
+            
+        return True
+    finally:
+        # ALWAYS restore collection visibility
+        restore_collection_visibility(context, orig_visibility)

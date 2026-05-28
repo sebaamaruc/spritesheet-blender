@@ -33,8 +33,10 @@ def render_selected_frames(clip, export_settings, context):
     render_dir = get_temp_export_dir(clip)
     os.makedirs(render_dir, exist_ok=True)
     
-    # 1. Save settings
+    # 1. Save settings and collection visibility
     orig_settings = save_render_settings(scene)
+    from .utils import save_collection_visibility, restore_collection_visibility, apply_clip_visibility
+    orig_visibility = save_collection_visibility(context)
     
     # 2. Configure for final render resolution
     render.resolution_x = export_settings.frame_width
@@ -45,10 +47,6 @@ def render_selected_frames(clip, export_settings, context):
     render.image_settings.color_depth = '8'
     scene.render.film_transparent = export_settings.transparent
     
-    # Active camera override if specified
-    if clip.camera:
-        scene.camera = clip.camera
-        
     rendered_paths = []
     total = len(selected_frames)
     
@@ -56,6 +54,13 @@ def render_selected_frames(clip, export_settings, context):
     context.window_manager.progress_begin(0, total)
     
     try:
+        # Apply visibility
+        apply_clip_visibility(context, clip)
+        
+        # Active camera override if specified
+        if clip.camera:
+            scene.camera = clip.camera
+            
         for idx, frame_item in enumerate(selected_frames):
             frame_num = frame_item.frame_number
             scene.frame_set(frame_num)
@@ -80,6 +85,7 @@ def render_selected_frames(clip, export_settings, context):
         # Stop progress and restore settings
         context.window_manager.progress_end()
         restore_render_settings(scene, orig_settings)
+        restore_collection_visibility(context, orig_visibility)
         
     return rendered_paths
 
@@ -104,8 +110,10 @@ def render_multi_clip_frames(clips_to_export, export_settings, context):
     scene = context.scene
     render = scene.render
     
-    # 1. Save settings
+    # 1. Save settings and collection visibility
     orig_settings = save_render_settings(scene)
+    from .utils import save_collection_visibility, restore_collection_visibility, apply_clip_visibility
+    orig_visibility = save_collection_visibility(context)
     
     # 2. Configure for final render resolution
     render.resolution_x = export_settings.frame_width
@@ -140,6 +148,13 @@ def render_multi_clip_frames(clips_to_export, export_settings, context):
             selected_frames = [f for f in clip.frames if f.selected]
             if not selected_frames:
                 continue
+                
+            # Apply collection visibility whitelist for this clip
+            try:
+                apply_clip_visibility(context, clip)
+            except Exception as e:
+                print(f"render_queue: Error applying visibility for '{clip.name}': {e}")
+                raise e
                 
             # Configure camera override for this clip if specified
             if clip.camera:
@@ -179,5 +194,7 @@ def render_multi_clip_frames(clips_to_export, export_settings, context):
         # Stop progress and restore settings
         context.window_manager.progress_end()
         restore_render_settings(scene, orig_settings)
+        # ALWAYS restore collection visibility at the end of the batch
+        restore_collection_visibility(context, orig_visibility)
         
     return all_frame_paths, clips_data

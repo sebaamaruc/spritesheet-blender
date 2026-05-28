@@ -21,6 +21,27 @@ class SpriteSheetFrameItem(bpy.types.PropertyGroup):
 def on_clip_settings_change(self, context):
     self.cache_dirty = True
 
+def update_collection_name(self, context):
+    if self.collection:
+        self.collection_name = self.collection.name
+    # Mark parent clip dirty
+    for clip in context.scene.spritesheet_clips:
+        for item in clip.included_collections:
+            if item == self:
+                clip.cache_dirty = True
+                return
+
+class SpriteSheetIncludedCollection(bpy.types.PropertyGroup):
+    collection: bpy.props.PointerProperty(
+        name="Collection",
+        type=bpy.types.Collection,
+        update=update_collection_name
+    )
+    collection_name: bpy.props.StringProperty(
+        name="Collection Name",
+        default=""
+    )
+
 class SpriteSheetClip(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(
         name="Clip Name",
@@ -54,6 +75,9 @@ class SpriteSheetClip(bpy.types.PropertyGroup):
         type=bpy.types.Object,
         poll=poll_camera,
         update=on_clip_settings_change
+    )
+    included_collections: bpy.props.CollectionProperty(
+        type=SpriteSheetIncludedCollection
     )
     preview_size: bpy.props.EnumProperty(
         name="Preview Size",
@@ -141,6 +165,7 @@ class SpriteSheetExportSettings(bpy.types.PropertyGroup):
 
 classes = (
     SpriteSheetFrameItem,
+    SpriteSheetIncludedCollection,
     SpriteSheetClip,
     SpriteSheetExportSettings,
 )
