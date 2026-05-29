@@ -77,6 +77,13 @@ def validate_export_settings(scene):
     if not clips_to_export:
         return False, "No clips marked for export. Check 'Include in Export' on at least one clip."
         
+    # Check for duplicate clip names among clips included in export
+    clip_names = [c.name for c in clips_to_export]
+    duplicates = sorted(list(set([name for name in clip_names if clip_names.count(name) > 1])))
+    if duplicates:
+        dup_list_str = " - ".join(duplicates)
+        return False, f"Duplicate clip names detected: - {dup_list_str}"
+        
     # Check if there are any frames selected across the included clips
     has_selected_frames = False
     for clip in clips_to_export:
@@ -104,10 +111,27 @@ def validate_export_settings(scene):
     # Check output directory
     out_dir = resolve_blend_path(export_settings.output_folder)
     if not os.path.exists(out_dir):
-        try:
-            os.makedirs(out_dir, exist_ok=True)
-        except Exception as e:
-            return False, f"Could not create output directory: {str(e)}"
+        # Walk up to find the first existing parent directory to check permissions
+        curr = out_dir
+        parent_found = False
+        while curr:
+            parent = os.path.dirname(curr)
+            if not parent or parent == curr:
+                break
+            if os.path.exists(parent):
+                if not os.access(parent, os.W_OK):
+                    return False, f"Directory '{parent}' is not writable."
+                parent_found = True
+                break
+            curr = parent
+            
+        if not parent_found:
+            return False, "Output path is invalid or parent directory does not exist."
+    else:
+        if not os.path.isdir(out_dir):
+            return False, f"Output path '{out_dir}' is a file, not a directory."
+        if not os.access(out_dir, os.W_OK):
+            return False, f"Output directory '{out_dir}' is not writable."
             
     # Check camera override or active camera for each clip with selected frames,
     # and also validate included_collections.
@@ -302,86 +326,125 @@ class WorldSwapContext:
         else:
             self.orig_samples = 64 # Safe default if not available
             
-        # 2. Resolve HDRI path using Blender's studio lights preference API
-        hdri_path = ""
-        if hasattr(bpy.context, "preferences") and hasattr(bpy.context.preferences, "studio_lights"):
-            for sl in bpy.context.preferences.studio_lights:
-                if sl.type == 'WORLD' and sl.name == self.studio_light:
-                    hdri_path = sl.path
-                    break
-                    
-        # Fallback to default Blender installation directories if not resolved via preferences
-        if not hdri_path:
-            version = f"{bpy.app.version[0]}.{bpy.app.version[1]}"
-            binary_dir = os.path.dirname(bpy.app.binary_path)
-            possible_dirs = [
-                os.path.normpath(os.path.join(binary_dir, '..', 'Resources', version, 'datafiles', 'studiolights', 'world')),
-                os.path.normpath(os.path.join(binary_dir, version, 'datafiles', 'studiolights', 'world')),
-            ]
-            for d in possible_dirs:
-                test_path = os.path.join(d, self.studio_light)
-                if os.path.exists(test_path):
-                    hdri_path = test_path
-                    break
-                    
-        # Fallback to any valid WORLD studio light if the requested one is missing
-        if not hdri_path and hasattr(bpy.context, "preferences") and hasattr(bpy.context.preferences, "studio_lights"):
-            print(f"utils: HDRI '{self.studio_light}' not found. Falling back to first available WORLD studio light.")
-            for sl in bpy.context.preferences.studio_lights:
-                if sl.type == 'WORLD' and sl.path:
-                    hdri_path = sl.path
-                    break
-                    
-        if not hdri_path:
-            raise FileNotFoundError(f"Could not find HDRI '{self.studio_light}' or any fallback studio light in Blender.")
-
-        # 3. Load HDRI image (Blender automatically reuse images via check_existing)
+        # Track whether changes were actually made to support robust rollback
+        swapped_world = False
+        swapped_engine = False
+        swapped_samples = False
+        
         try:
-            self.temp_image = bpy.data.images.load(hdri_path, check_existing=True)
-        except Exception as e:
-            print(f"utils: Error loading HDRI '{hdri_path}': {e}")
-            raise e
-
-        # 4. Get or create temporary World block (session persistent, no aggressive deletion)
-        temp_world_name = f"Temp_LookDev_World_{self.studio_light}"
-        self.temp_world = bpy.data.worlds.get(temp_world_name)
-        if not self.temp_world:
-            self.temp_world = bpy.data.worlds.new(name=temp_world_name)
+            # 2. Resolve HDRI path using Blender's studio lights preference API
+            hdri_path = ""
+            if hasattr(bpy.context, "preferences") and hasattr(bpy.context.preferences, "studio_lights"):
+                for sl in bpy.context.preferences.studio_lights:
+                    if sl.type == 'WORLD' and sl.name == self.studio_light:
+                        hdri_path = sl.path
+                        break
+                        
+            # Fallback to default Blender installation directories if not resolved via preferences
+            if not hdri_path:
+                version = f"{bpy.app.version[0]}.{bpy.app.version[1]}"
+                binary_dir = os.path.dirname(bpy.app.binary_path)
+                possible_dirs = [
+                    os.path.normpath(os.path.join(binary_dir, '..', 'Resources', version, 'datafiles', 'studiolights', 'world')),
+                    os.path.normpath(os.path.join(binary_dir, version, 'datafiles', 'studiolights', 'world')),
+                ]
+                for d in possible_dirs:
+                    test_path = os.path.join(d, self.studio_light)
+                    if os.path.exists(test_path):
+                        hdri_path = test_path
+                        break
+                        
+            # Fallback to any valid WORLD studio light if the requested one is missing
+            if not hdri_path and hasattr(bpy.context, "preferences") and hasattr(bpy.context.preferences, "studio_lights"):
+                print(f"utils: HDRI '{self.studio_light}' not found. Falling back to first available WORLD studio light.")
+                for sl in bpy.context.preferences.studio_lights:
+                    if sl.type == 'WORLD' and sl.path:
+                        hdri_path = sl.path
+                        break
+                        
+            if not hdri_path:
+                raise FileNotFoundError(f"Could not find HDRI '{self.studio_light}' or any fallback studio light in Blender.")
+    
+            # 3. Load HDRI image (Blender automatically reuse images via check_existing)
+            try:
+                self.temp_image = bpy.data.images.load(hdri_path, check_existing=True)
+            except Exception as e:
+                print(f"utils: Error loading HDRI '{hdri_path}': {e}")
+                raise
+    
+            # 4. Get or create temporary World block (session persistent, no aggressive deletion)
+            temp_world_name = f"Temp_LookDev_World_{self.studio_light}"
+            self.temp_world = bpy.data.worlds.get(temp_world_name)
+            if not self.temp_world:
+                self.temp_world = bpy.data.worlds.new(name=temp_world_name)
+                
+            # Rebuild/configure the node tree to match LookDev specifications
+            if hasattr(self.temp_world, "use_nodes"):
+                self.temp_world.use_nodes = True
+            nt = self.temp_world.node_tree
+            nt.nodes.clear()
             
-        # Rebuild/configure the node tree to match LookDev specifications
-        if hasattr(self.temp_world, "use_nodes"):
-            self.temp_world.use_nodes = True
-        nt = self.temp_world.node_tree
-        nt.nodes.clear()
-        
-        node_out = nt.nodes.new('ShaderNodeOutputWorld')
-        node_bg = nt.nodes.new('ShaderNodeBackground')
-        node_tex = nt.nodes.new('ShaderNodeTexEnvironment')
-        node_mapping = nt.nodes.new('ShaderNodeMapping')
-        node_coord = nt.nodes.new('ShaderNodeTexCoord')
-        
-        node_tex.image = self.temp_image
-        node_mapping.inputs['Rotation'].default_value[2] = self.rotate_z
-        node_bg.inputs['Strength'].default_value = self.intensity
-        
-        nt.links.new(node_coord.outputs['Generated'], node_mapping.inputs['Vector'])
-        nt.links.new(node_mapping.outputs['Vector'], node_tex.inputs['Vector'])
-        nt.links.new(node_tex.outputs['Color'], node_bg.inputs['Color'])
-        nt.links.new(node_bg.outputs['Background'], node_out.inputs['Surface'])
-        
-        # 5. Swap World and engine settings
-        self.scene.world = self.temp_world
-        self.scene.render.engine = 'BLENDER_EEVEE'
-        if hasattr(self.scene, "eevee") and hasattr(self.scene.eevee, "taa_render_samples"):
-            self.scene.eevee.taa_render_samples = 4
+            node_out = nt.nodes.new('ShaderNodeOutputWorld')
+            node_bg = nt.nodes.new('ShaderNodeBackground')
+            node_tex = nt.nodes.new('ShaderNodeTexEnvironment')
+            node_mapping = nt.nodes.new('ShaderNodeMapping')
+            node_coord = nt.nodes.new('ShaderNodeTexCoord')
             
-        # 6. Optionally hide physical scene lights
-        if not self.use_scene_lights:
-            for obj in self.scene.objects:
-                if obj.type == 'LIGHT':
-                    self.hidden_lights.append((obj, obj.hide_render))
-                    obj.hide_render = True
-                    
+            node_tex.image = self.temp_image
+            node_mapping.inputs['Rotation'].default_value[2] = self.rotate_z
+            node_bg.inputs['Strength'].default_value = self.intensity
+            
+            nt.links.new(node_coord.outputs['Generated'], node_mapping.inputs['Vector'])
+            nt.links.new(node_mapping.outputs['Vector'], node_tex.inputs['Vector'])
+            nt.links.new(node_tex.outputs['Color'], node_bg.inputs['Color'])
+            nt.links.new(node_bg.outputs['Background'], node_out.inputs['Surface'])
+            
+            # 5. Swap World and engine settings
+            self.scene.world = self.temp_world
+            swapped_world = True
+            
+            self.scene.render.engine = 'BLENDER_EEVEE'
+            swapped_engine = True
+            
+            if hasattr(self.scene, "eevee") and hasattr(self.scene.eevee, "taa_render_samples"):
+                self.scene.eevee.taa_render_samples = 4
+                swapped_samples = True
+                
+            # 6. Optionally hide physical scene lights
+            if not self.use_scene_lights:
+                for obj in self.scene.objects:
+                    if obj.type == 'LIGHT':
+                        try:
+                            orig_hide = obj.hide_render
+                            obj.hide_render = True
+                            self.hidden_lights.append((obj, orig_hide))
+                        except Exception as e:
+                            print(f"utils: Warning - Could not hide light '{obj.name}' (possibly read-only linked data): {e}")
+                            
+        except Exception:
+            # ROLLBACK: Revert any partial changes if initialization fails
+            if swapped_world:
+                try:
+                    self.scene.world = self.orig_world
+                except Exception:
+                    pass
+            if swapped_engine:
+                try:
+                    self.scene.render.engine = self.orig_engine
+                except Exception:
+                    pass
+            if swapped_samples and self.orig_samples is not None:
+                try:
+                    self.scene.eevee.taa_render_samples = self.orig_samples
+                except Exception:
+                    pass
+            for obj, orig_hide in self.hidden_lights:
+                try:
+                    obj.hide_render = orig_hide
+                except Exception:
+                    pass
+            raise
+            
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

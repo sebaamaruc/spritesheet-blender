@@ -277,6 +277,33 @@ class TestIntegrationRender(unittest.TestCase):
         self.assertEqual(self.scene.render.engine, initial_engine)
         self.assertEqual(self.light_obj.hide_render, initial_light_hide)
 
+    def test_duplicate_clip_names_validation(self):
+        from spritesheet_frame_selector.utils import validate_export_settings
+        
+        # 1. Create two clips with different names
+        clip1 = self.scene.spritesheet_clips.add()
+        clip1.name = "Idle"
+        clip1.include_in_export = True
+        
+        clip2 = self.scene.spritesheet_clips.add()
+        clip2.name = "Walk"
+        clip2.include_in_export = True
+        
+        # Validation should not complain about duplicate names
+        is_valid, err_msg = validate_export_settings(self.scene)
+        self.assertNotIn("Duplicate clip names detected", err_msg)
+        
+        # 2. Rename clip2 to "Idle" to trigger duplicate validation
+        clip2.name = "Idle"
+        is_valid, err_msg = validate_export_settings(self.scene)
+        self.assertFalse(is_valid)
+        self.assertIn("Duplicate clip names detected: - Idle", err_msg)
+        
+        # 3. Mark clip2 to NOT be included in export
+        clip2.include_in_export = False
+        is_valid, err_msg = validate_export_settings(self.scene)
+        self.assertNotIn("Duplicate clip names detected", err_msg)
+
 if __name__ == '__main__':
     unittest.main(argv=[sys.argv[0]])
 

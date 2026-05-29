@@ -721,12 +721,11 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         """Starts or stops the timer-based playback preview"""
         if self.is_playing:
             self.is_playing = False
-            if self.playback_timer:
-                try:
-                    bpy.app.timers.unregister(self.handle_playback_tick)
-                except:
-                    pass
-                self.playback_timer = None
+            try:
+                bpy.app.timers.unregister(self.handle_playback_tick)
+            except:
+                pass
+            self.playback_timer = False
         else:
             selected_indices = [i for i, f in enumerate(clip.frames) if f.selected]
             if not selected_indices:
@@ -746,7 +745,8 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
                 self._playback_list_pos = 0
             
             # Register timer
-            self.playback_timer = bpy.app.timers.register(self.handle_playback_tick)
+            bpy.app.timers.register(self.handle_playback_tick)
+            self.playback_timer = True
 
     def step_playback(self, clip, direction):
         """Steps playback_index manually. direction is 1 (forward) or -1 (backward)"""
