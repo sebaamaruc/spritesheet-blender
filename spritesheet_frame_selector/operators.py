@@ -1,5 +1,6 @@
 import bpy
 from .preview_generator import generate_clip_previews, clear_clip_previews
+from .utils import get_clip_context
 
 class SPRITESHEET_OT_add_clip(bpy.types.Operator):
     bl_idname = "spritesheet.add_clip"
@@ -9,15 +10,16 @@ class SPRITESHEET_OT_add_clip(bpy.types.Operator):
 
     def execute(self, context):
         scene = context.scene
-        clip = scene.spritesheet_clips.add()
-        clip.name = f"Clip_{len(scene.spritesheet_clips)}"
+        collection, index_name, owner = get_clip_context(context)
+        clip = collection.add()
+        clip.name = f"Clip_{len(collection)}"
         
         # Set default frames to match scene start/end
         clip.frame_start = scene.frame_start
         clip.frame_end = scene.frame_end
         
         # Select the newly added clip
-        scene.active_clip_index = len(scene.spritesheet_clips) - 1
+        setattr(owner, index_name, len(collection) - 1)
         
         self.report({'INFO'}, f"Added clip: {clip.name}")
         return {'FINISHED'}
@@ -31,29 +33,30 @@ class SPRITESHEET_OT_remove_clip(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        return len(scene.spritesheet_clips) > 0
+        collection, index_name, owner = get_clip_context(context)
+        return len(collection) > 0
 
     def execute(self, context):
-        scene = context.scene
-        idx = scene.active_clip_index
+        collection, index_name, owner = get_clip_context(context)
+        idx = getattr(owner, index_name)
         
-        if idx < 0 or idx >= len(scene.spritesheet_clips):
+        if idx < 0 or idx >= len(collection):
             self.report({'WARNING'}, "No active clip selected")
             return {'CANCELLED'}
             
-        clip = scene.spritesheet_clips[idx]
+        clip = collection[idx]
         clip_name = clip.name
         
         # Clear cache files
         clear_clip_previews(clip)
         
         # Remove from collection
-        scene.spritesheet_clips.remove(idx)
+        collection.remove(idx)
         
         # Adjust active index
-        if scene.active_clip_index >= len(scene.spritesheet_clips):
-            scene.active_clip_index = max(0, len(scene.spritesheet_clips) - 1)
+        curr_idx = getattr(owner, index_name)
+        if curr_idx >= len(collection):
+            setattr(owner, index_name, max(0, len(collection) - 1))
             
         self.report({'INFO'}, f"Removed clip: {clip_name}")
         return {'FINISHED'}
@@ -67,21 +70,21 @@ class SPRITESHEET_OT_duplicate_clip(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        return len(scene.spritesheet_clips) > 0
+        collection, index_name, owner = get_clip_context(context)
+        return len(collection) > 0
 
     def execute(self, context):
-        scene = context.scene
-        idx = scene.active_clip_index
+        collection, index_name, owner = get_clip_context(context)
+        idx = getattr(owner, index_name)
         
-        if idx < 0 or idx >= len(scene.spritesheet_clips):
+        if idx < 0 or idx >= len(collection):
             self.report({'WARNING'}, "No active clip selected")
             return {'CANCELLED'}
             
-        src = scene.spritesheet_clips[idx]
+        src = collection[idx]
         
         # Create new clip
-        dst = scene.spritesheet_clips.add()
+        dst = collection.add()
         dst.name = f"{src.name}_copy"
         dst.frame_start = src.frame_start
         dst.frame_end = src.frame_end
@@ -104,10 +107,9 @@ class SPRITESHEET_OT_duplicate_clip(bpy.types.Operator):
                 item = dst.frames.add()
                 item.frame_number = src_frame.frame_number
                 item.selected = src_frame.selected
-                # preview_path remains empty, marking cache_dirty=True by default
             dst.cache_dirty = True
         
-        scene.active_clip_index = len(scene.spritesheet_clips) - 1
+        setattr(owner, index_name, len(collection) - 1)
         self.report({'INFO'}, f"Duplicated clip: {src.name} as {dst.name}")
         return {'FINISHED'}
 
@@ -120,15 +122,16 @@ class SPRITESHEET_OT_generate_preview(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        if len(scene.spritesheet_clips) == 0:
+        collection, index_name, owner = get_clip_context(context)
+        if len(collection) == 0:
             return False
-        idx = scene.active_clip_index
-        return 0 <= idx < len(scene.spritesheet_clips)
+        idx = getattr(owner, index_name)
+        return 0 <= idx < len(collection)
 
     def execute(self, context):
-        scene = context.scene
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        idx = getattr(owner, index_name)
+        clip = collection[idx]
         
         # Generate previews
         success = generate_clip_previews(clip, context)
@@ -151,8 +154,8 @@ class SPRITESHEET_OT_refresh_preview(bpy.types.Operator):
         return SPRITESHEET_OT_generate_preview.poll(context)
 
     def execute(self, context):
-        scene = context.scene
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        clip = collection[getattr(owner, index_name)]
         
         # Clear existing previews first
         clear_clip_previews(clip)
@@ -178,8 +181,8 @@ class SPRITESHEET_OT_clear_cache(bpy.types.Operator):
         return SPRITESHEET_OT_generate_preview.poll(context)
 
     def execute(self, context):
-        scene = context.scene
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        clip = collection[getattr(owner, index_name)]
         clear_clip_previews(clip)
         self.report({'INFO'}, f"Cleared preview cache for {clip.name}")
         return {'FINISHED'}
@@ -194,14 +197,15 @@ class SPRITESHEET_OT_select_all(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        if len(scene.spritesheet_clips) == 0:
+        collection, index_name, owner = get_clip_context(context)
+        if len(collection) == 0:
             return False
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        clip = collection[getattr(owner, index_name)]
         return len(clip.frames) > 0
 
     def execute(self, context):
-        clip = context.scene.spritesheet_clips[context.scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        clip = collection[getattr(owner, index_name)]
         for frame in clip.frames:
             frame.selected = True
         return {'FINISHED'}
@@ -218,7 +222,8 @@ class SPRITESHEET_OT_deselect_all(bpy.types.Operator):
         return SPRITESHEET_OT_select_all.poll(context)
 
     def execute(self, context):
-        clip = context.scene.spritesheet_clips[context.scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        clip = collection[getattr(owner, index_name)]
         for frame in clip.frames:
             frame.selected = False
         return {'FINISHED'}
@@ -235,7 +240,8 @@ class SPRITESHEET_OT_invert_selection(bpy.types.Operator):
         return SPRITESHEET_OT_select_all.poll(context)
 
     def execute(self, context):
-        clip = context.scene.spritesheet_clips[context.scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        clip = collection[getattr(owner, index_name)]
         for frame in clip.frames:
             frame.selected = not frame.selected
         return {'FINISHED'}
@@ -259,7 +265,8 @@ class SPRITESHEET_OT_select_every_n(bpy.types.Operator):
         return SPRITESHEET_OT_select_all.poll(context)
 
     def execute(self, context):
-        clip = context.scene.spritesheet_clips[context.scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        clip = collection[getattr(owner, index_name)]
         for i, frame in enumerate(clip.frames):
             frame.selected = (i % self.n == 0)
         self.report({'INFO'}, f"Selected every {self.n}th frame")
@@ -274,13 +281,13 @@ class SPRITESHEET_OT_open_visual_selector(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        if len(scene.spritesheet_clips) == 0:
+        collection, index_name, owner = get_clip_context(context)
+        if len(collection) == 0:
             return False
-        idx = scene.active_clip_index
-        if idx < 0 or idx >= len(scene.spritesheet_clips):
+        idx = getattr(owner, index_name)
+        if idx < 0 or idx >= len(collection):
             return False
-        return len(scene.spritesheet_clips[idx].frames) > 0
+        return len(collection[idx].frames) > 0
 
     def invoke(self, context, event):
         return bpy.ops.spritesheet.visual_selector('INVOKE_DEFAULT')
@@ -294,8 +301,8 @@ class SPRITESHEET_OT_export_clip(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        return len(scene.spritesheet_clips) > 0
+        collection, index_name, owner = get_clip_context(context)
+        return len(collection) > 0
 
     def execute(self, context):
         from .utils import validate_export_settings
@@ -307,7 +314,8 @@ class SPRITESHEET_OT_export_clip(bpy.types.Operator):
             self.report({'ERROR'}, err_msg)
             return {'CANCELLED'}
         
-        clips = list(scene.spritesheet_clips)
+        collection, index_name, owner = get_clip_context(context)
+        clips = list(collection)
         export_settings = scene.spritesheet_export
         
         success = export_multiple_clips(clips, export_settings, context)
@@ -332,14 +340,16 @@ class SPRITESHEET_OT_set_playback_fps(bpy.types.Operator):
     )
     
     def invoke(self, context, event):
-        if len(context.scene.spritesheet_clips) > 0:
-            clip = context.scene.spritesheet_clips[context.scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        if len(collection) > 0:
+            clip = collection[getattr(owner, index_name)]
             self.fps = clip.fps
         return context.window_manager.invoke_props_dialog(self)
         
     def execute(self, context):
-        if len(context.scene.spritesheet_clips) > 0:
-            clip = context.scene.spritesheet_clips[context.scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        if len(collection) > 0:
+            clip = collection[getattr(owner, index_name)]
             clip.fps = self.fps
             # Trigger redrawing of viewports
             for area in context.screen.areas:
@@ -356,13 +366,13 @@ class SPRITESHEET_OT_add_included_collection(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        return (len(scene.spritesheet_clips) > 0 
-                and 0 <= scene.active_clip_index < len(scene.spritesheet_clips))
+        collection, index_name, owner = get_clip_context(context)
+        return (len(collection) > 0 
+                and 0 <= getattr(owner, index_name) < len(collection))
 
     def execute(self, context):
-        scene = context.scene
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        clip = collection[getattr(owner, index_name)]
         clip.included_collections.add()
         clip.cache_dirty = True
         return {'FINISHED'}
@@ -378,13 +388,13 @@ class SPRITESHEET_OT_remove_included_collection(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        return (len(scene.spritesheet_clips) > 0 
-                and 0 <= scene.active_clip_index < len(scene.spritesheet_clips))
+        collection, index_name, owner = get_clip_context(context)
+        return (len(collection) > 0 
+                and 0 <= getattr(owner, index_name) < len(collection))
 
     def execute(self, context):
-        scene = context.scene
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        clip = collection[getattr(owner, index_name)]
         if 0 <= self.index < len(clip.included_collections):
             clip.included_collections.remove(self.index)
             clip.cache_dirty = True
@@ -392,11 +402,57 @@ class SPRITESHEET_OT_remove_included_collection(bpy.types.Operator):
         return {'CANCELLED'}
 
 
+class SPRITESHEET_OT_move_clip(bpy.types.Operator):
+    bl_idname = "spritesheet.move_clip"
+    bl_label = "Move Clip"
+    bl_description = "Move the active animation clip up or down in the list"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    direction: bpy.props.EnumProperty(
+        items=[
+            ('UP', "Up", "Move clip up"),
+            ('DOWN', "Down", "Move clip down")
+        ],
+        name="Direction",
+        default='UP'
+    )
+
+    @classmethod
+    def poll(cls, context):
+        collection, index_name, owner = get_clip_context(context)
+        return len(collection) > 1
+
+    def execute(self, context):
+        collection, index_name, owner = get_clip_context(context)
+        idx = getattr(owner, index_name)
+        
+        if idx < 0 or idx >= len(collection):
+            self.report({'WARNING'}, "No active clip selected")
+            return {'CANCELLED'}
+
+        if self.direction == 'UP':
+            if idx == 0:
+                self.report({'INFO'}, "Clip is already at the top")
+                return {'CANCELLED'}
+            new_idx = idx - 1
+        else: # DOWN
+            if idx == len(collection) - 1:
+                self.report({'INFO'}, "Clip is already at the bottom")
+                return {'CANCELLED'}
+            new_idx = idx + 1
+            
+        collection.move(idx, new_idx)
+        setattr(owner, index_name, new_idx)
+        
+        return {'FINISHED'}
+
+
 classes = (
     SPRITESHEET_OT_set_playback_fps,
     SPRITESHEET_OT_add_clip,
     SPRITESHEET_OT_remove_clip,
     SPRITESHEET_OT_duplicate_clip,
+    SPRITESHEET_OT_move_clip,
     SPRITESHEET_OT_generate_preview,
     SPRITESHEET_OT_refresh_preview,
     SPRITESHEET_OT_clear_cache,

@@ -24,8 +24,9 @@ def on_clip_settings_change(self, context):
 def update_collection_name(self, context):
     if self.collection:
         self.collection_name = self.collection.name
-    # Mark parent clip dirty
-    for clip in context.scene.spritesheet_clips:
+    from .utils import get_clip_context
+    collection, _, _ = get_clip_context(context)
+    for clip in collection:
         for item in clip.included_collections:
             if item == self:
                 clip.cache_dirty = True

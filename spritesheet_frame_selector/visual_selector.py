@@ -38,10 +38,14 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        if len(scene.spritesheet_clips) == 0:
+        from .utils import get_clip_context
+        collection, index_name, owner = get_clip_context(context)
+        if len(collection) == 0:
             return False
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        idx = getattr(owner, index_name)
+        if idx < 0 or idx >= len(collection):
+            return False
+        clip = collection[idx]
         return len(clip.frames) > 0
 
     def load_previews(self, clip):
@@ -64,7 +68,10 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         """Removes temporary preview images from Blender's memory"""
         for img in self.preview_images.values():
             if img:
-                bpy.data.images.remove(img)
+                try:
+                    bpy.data.images.remove(img)
+                except Exception as e:
+                    print(f"Visual Selector: Warning removing image from memory: {e}")
         self.preview_images.clear()
 
     def get_visible_frames_layout(self, width, height, clip, context):
@@ -429,7 +436,12 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         width = region.width
         height = region.height
         
-        clip = context.scene.spritesheet_clips[context.scene.active_clip_index]
+        from .utils import get_clip_context
+        try:
+            collection, index_name, owner = get_clip_context(context)
+            clip = collection[getattr(owner, index_name)]
+        except Exception:
+            return
         layout_items = self.get_visible_frames_layout(width, height, clip, context)
         
         # Force GPU depth test and depth mask state for 2D UI drawing
@@ -693,7 +705,13 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         if not self.is_playing:
             return None # Stop timer
             
-        clip = bpy.context.scene.spritesheet_clips[bpy.context.scene.active_clip_index]
+        from .utils import get_clip_context
+        try:
+            collection, index_name, owner = get_clip_context(bpy.context)
+            clip = collection[getattr(owner, index_name)]
+        except Exception:
+            self.is_playing = False
+            return None
         selected_indices = [i for i, f in enumerate(clip.frames) if f.selected]
         
         if not selected_indices:
@@ -839,7 +857,9 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         self.playback_index = 0
         self.is_playing = False
         
-        clip = context.scene.spritesheet_clips[context.scene.active_clip_index]
+        from .utils import get_clip_context
+        collection, index_name, owner = get_clip_context(context)
+        clip = collection[getattr(owner, index_name)]
         
         # Load cached images into Blender memory
         self.load_previews(clip)
@@ -864,7 +884,21 @@ class SPRITESHEET_OT_visual_selector(bpy.types.Operator):
         # Force redraw on every event inside modal to keep it fluid
         context.area.tag_redraw()
         
-        clip = context.scene.spritesheet_clips[context.scene.active_clip_index]
+        # Initialize local variables to avoid scoping NameErrors
+        collection = None
+        index_name = None
+        owner = None
+        clip = None
+        
+        from .utils import get_clip_context
+        try:
+            collection, index_name, owner = get_clip_context(context)
+            clip = collection[getattr(owner, index_name)]
+        except Exception as e:
+            self.report({'ERROR'}, f"Visual Selector: Context lost or clip not found. Closing. ({e})")
+            self.close_modal(context)
+            return {'FINISHED'}
+            
         width = context.region.width
         height = context.region.height
         layout_items = self.get_visible_frames_layout(width, height, clip, context)

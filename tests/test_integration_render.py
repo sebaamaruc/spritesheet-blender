@@ -304,6 +304,117 @@ class TestIntegrationRender(unittest.TestCase):
         is_valid, err_msg = validate_export_settings(self.scene)
         self.assertNotIn("Duplicate clip names detected", err_msg)
 
+    def test_clip_reordering_and_ordered_export(self):
+        import json
+        
+        # 1. Clear existing clips
+        self.scene.spritesheet_clips.clear()
+        
+        # 2. Add three clips with unique names
+        clip_a = self.scene.spritesheet_clips.add()
+        clip_a.name = "ClipA"
+        clip_a.frame_start = 1
+        clip_a.frame_end = 1
+        clip_a.include_in_export = True
+        
+        clip_b = self.scene.spritesheet_clips.add()
+        clip_b.name = "ClipB"
+        clip_b.frame_start = 2
+        clip_b.frame_end = 2
+        clip_b.include_in_export = True
+        
+        clip_c = self.scene.spritesheet_clips.add()
+        clip_c.name = "ClipC"
+        clip_c.frame_start = 3
+        clip_c.frame_end = 3
+        clip_c.include_in_export = True
+        
+        # Verify initial order
+        initial_names = [c.name for c in self.scene.spritesheet_clips]
+        self.assertEqual(initial_names, ["ClipA", "ClipB", "ClipC"])
+        
+        # Set active index to 2 (ClipC)
+        self.scene.active_clip_index = 2
+        
+        # 3. Trigger Move Up on ClipC (index 2 -> 1)
+        bpy.ops.spritesheet.move_clip(direction='UP')
+        names_after_one_move = [c.name for c in self.scene.spritesheet_clips]
+        self.assertEqual(names_after_one_move, ["ClipA", "ClipC", "ClipB"])
+        self.assertEqual(self.scene.active_clip_index, 1)
+        
+        # 4. Trigger Move Up on ClipC again (index 1 -> 0)
+        bpy.ops.spritesheet.move_clip(direction='UP')
+        names_after_two_moves = [c.name for c in self.scene.spritesheet_clips]
+        self.assertEqual(names_after_two_moves, ["ClipC", "ClipA", "ClipB"])
+        self.assertEqual(self.scene.active_clip_index, 0)
+        
+        # 5. Check poll and boundary limits
+        # Move up from top should do nothing/be cancelled
+        res = bpy.ops.spritesheet.move_clip(direction='UP')
+        self.assertEqual(res, {'CANCELLED'})
+        self.assertEqual(self.scene.active_clip_index, 0)
+        
+        # Move down (index 0 -> 1)
+        bpy.ops.spritesheet.move_clip(direction='DOWN')
+        names_after_move_down = [c.name for c in self.scene.spritesheet_clips]
+        self.assertEqual(names_after_move_down, ["ClipA", "ClipC", "ClipB"])
+        self.assertEqual(self.scene.active_clip_index, 1)
+
+        # 6. Verify Ordered Export: exporter outputs JSON in the exact collection order
+        from spritesheet_frame_selector.utils import validate_export_settings
+        from spritesheet_frame_selector.exporter import write_metadata_json
+        
+        # Add frame items and collections to clips so they pass validation
+        for clip in [clip_a, clip_b, clip_c]:
+            item = clip.included_collections.add()
+            item.collection = self.coll_char
+            item.collection_name = self.coll_char.name
+            
+            frame = clip.frames.add()
+            frame.frame_number = clip.frame_start
+            frame.selected = True
+            
+        export_settings = self.scene.spritesheet_export
+        export_settings.frame_width = 64
+        export_settings.frame_height = 64
+        export_settings.columns = 1
+        export_settings.output_folder = self.temp_dir.name
+        export_settings.sheet_name = "ordered_test"
+        
+        # Ensure validation is happy with the ordered setup
+        is_valid, err_msg = validate_export_settings(self.scene)
+        self.assertTrue(is_valid, f"Validation failed: {err_msg}")
+        
+        # Prepare dummy clips_data representing the ordered execution
+        # We manually build it in the order of the collection to mimic the export loop
+        clips_data = {}
+        for clip in self.scene.spritesheet_clips:
+            if clip.include_in_export:
+                clips_data[clip.name] = {
+                    "count": 1,
+                    "fps": clip.fps
+                }
+                
+        # Write metadata JSON
+        success = write_metadata_json(
+            output_dir=self.temp_dir.name,
+            sheet_name="ordered_test",
+            frame_width=64,
+            frame_height=64,
+            columns=1,
+            clips_data=clips_data
+        )
+        self.assertTrue(success)
+        
+        # Read JSON file back and assert keys order
+        json_path = os.path.join(self.temp_dir.name, "ordered_test.json")
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+            
+        # Dictionaries preserve insertion order in Python 3.7+
+        clips_keys = list(data["clips"].keys())
+        self.assertEqual(clips_keys, ["ClipA", "ClipC", "ClipB"])
+
 if __name__ == '__main__':
     unittest.main(argv=[sys.argv[0]])
 

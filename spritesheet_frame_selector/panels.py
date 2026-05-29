@@ -1,5 +1,5 @@
 import bpy
-from .utils import calculate_sheet_dimensions, validate_export_settings
+from .utils import calculate_sheet_dimensions, validate_export_settings, get_clip_context, get_clip_collection_name
 
 class SPRITESHEET_UL_clip_list(bpy.types.UIList):
     """UIList for animation clips"""
@@ -30,8 +30,8 @@ class SPRITESHEET_PT_main(bpy.types.Panel):
         layout = self.layout
         # Main panel acts as container, subpanels do the drawing.
         # But we can display a brief info/status if empty.
-        scene = context.scene
-        if len(scene.spritesheet_clips) == 0:
+        collection, index_name, owner = get_clip_context(context)
+        if len(collection) == 0:
             layout.label(text="Get started by adding an animation clip.")
             layout.operator("spritesheet.add_clip", text="Add Animation Clip", icon='ADD')
 
@@ -45,20 +45,23 @@ class SPRITESHEET_PT_clips(bpy.types.Panel):
     
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        return (len(scene.spritesheet_clips) > 0
-                and 0 <= scene.active_clip_index < len(scene.spritesheet_clips))
+        collection, index_name, owner = get_clip_context(context)
+        idx = getattr(owner, index_name)
+        return (len(collection) > 0
+                and 0 <= idx < len(collection))
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
+        collection, index_name, owner = get_clip_context(context)
+        collection_name = get_clip_collection_name(context)
+        idx = getattr(owner, index_name)
         
         # List of clips
         row = layout.row()
         row.template_list(
             "SPRITESHEET_UL_clip_list", "",
-            scene, "spritesheet_clips",
-            scene, "active_clip_index",
+            owner, collection_name,
+            owner, index_name,
             rows=3
         )
         
@@ -66,10 +69,13 @@ class SPRITESHEET_PT_clips(bpy.types.Panel):
         col.operator("spritesheet.add_clip", text="", icon='ADD')
         col.operator("spritesheet.remove_clip", text="", icon='REMOVE')
         col.operator("spritesheet.duplicate_clip", text="", icon='DUPLICATE')
+        col.separator()
+        col.operator("spritesheet.move_clip", text="", icon='TRIA_UP').direction = 'UP'
+        col.operator("spritesheet.move_clip", text="", icon='TRIA_DOWN').direction = 'DOWN'
         
         # Selected clip settings
-        if len(scene.spritesheet_clips) > 0 and 0 <= scene.active_clip_index < len(scene.spritesheet_clips):
-            clip = scene.spritesheet_clips[scene.active_clip_index]
+        if len(collection) > 0 and 0 <= idx < len(collection):
+            clip = collection[idx]
             
             box = layout.box()
             box.label(text=f"Clip Settings: {clip.name}", icon='PROPERTIES')
@@ -113,14 +119,16 @@ class SPRITESHEET_PT_preview(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        return (len(scene.spritesheet_clips) > 0
-                and 0 <= scene.active_clip_index < len(scene.spritesheet_clips))
+        collection, index_name, owner = get_clip_context(context)
+        idx = getattr(owner, index_name)
+        return (len(collection) > 0
+                and 0 <= idx < len(collection))
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        idx = getattr(owner, index_name)
+        clip = collection[idx]
         
         layout.prop(clip, "preview_size", text="Preview Size")
         
@@ -155,18 +163,20 @@ class SPRITESHEET_PT_selection(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        if len(scene.spritesheet_clips) == 0:
+        collection, index_name, owner = get_clip_context(context)
+        if len(collection) == 0:
             return False
-        if not (0 <= scene.active_clip_index < len(scene.spritesheet_clips)):
+        idx = getattr(owner, index_name)
+        if not (0 <= idx < len(collection)):
             return False
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        clip = collection[idx]
         return len(clip.frames) > 0
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        idx = getattr(owner, index_name)
+        clip = collection[idx]
         
         # Open visual selector button
         layout.scale_y = 1.3
@@ -200,15 +210,18 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        scene = context.scene
-        return (len(scene.spritesheet_clips) > 0
-                and 0 <= scene.active_clip_index < len(scene.spritesheet_clips))
+        collection, index_name, owner = get_clip_context(context)
+        idx = getattr(owner, index_name)
+        return (len(collection) > 0
+                and 0 <= idx < len(collection))
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         export_settings = scene.spritesheet_export
-        clip = scene.spritesheet_clips[scene.active_clip_index]
+        collection, index_name, owner = get_clip_context(context)
+        idx = getattr(owner, index_name)
+        clip = collection[idx]
         
         layout.prop(export_settings, "sheet_name", text="Sheet Name")
         layout.prop(export_settings, "output_folder", text="Output Path")
@@ -229,7 +242,7 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
         layout.prop(export_settings, "export_png_sequence", text="Export individual PNG sequence")
         
         # Stats & Verification
-        clips_to_export = [c for c in scene.spritesheet_clips if c.include_in_export]
+        clips_to_export = [c for c in collection if c.include_in_export]
         n_selected = sum(sum(1 for f in c.frames if f.selected) for c in clips_to_export)
         
         if n_selected > 0:

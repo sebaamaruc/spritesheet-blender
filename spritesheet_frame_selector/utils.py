@@ -69,11 +69,16 @@ def validate_export_settings(scene):
     """Validates the scene export configuration.
     Returns (is_valid, error_message).
     """
-    if len(scene.spritesheet_clips) == 0:
+    try:
+        collection, _, _ = get_clip_context(bpy.context)
+    except:
+        collection = scene.spritesheet_clips
+
+    if len(collection) == 0:
         return False, "No animation clips defined. Add a clip first."
     
     # Get all clips marked for export
-    clips_to_export = [c for c in scene.spritesheet_clips if c.include_in_export]
+    clips_to_export = [c for c in collection if c.include_in_export]
     if not clips_to_export:
         return False, "No clips marked for export. Check 'Include in Export' on at least one clip."
         
@@ -471,5 +476,25 @@ class WorldSwapContext:
                 self.scene.eevee.taa_render_samples = self.orig_samples
             except Exception as e:
                 print(f"utils: Warning restoring original EEVEE samples: {e}")
+
+
+def get_clip_context(context):
+    """
+    Returns a tuple (collection, index_prop_name, owner_data_block)
+    to abstract the clip list access for UI panels and operators.
+    Fase 1: Scene-level global collection.
+    Fase 2: active_workspace.clips.
+    """
+    scene = context.scene
+    return scene.spritesheet_clips, "active_clip_index", scene
+
+
+def get_clip_collection_name(context):
+    """
+    Returns the string name of the clips collection property on the owner.
+    Fase 1: "spritesheet_clips"
+    Fase 2: "clips"
+    """
+    return "spritesheet_clips"
 
 
