@@ -1,5 +1,17 @@
 import bpy
-from .utils import calculate_sheet_dimensions, validate_export_settings, get_clip_context, get_clip_collection_name
+from .utils import calculate_sheet_dimensions, validate_export_settings, get_clip_context, get_clip_collection_name, get_active_workspace
+
+class SPRITESHEET_UL_workspace_list(bpy.types.UIList):
+    """UIList for workspaces"""
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            row = layout.row(align=True)
+            row.label(icon='WORKSPACE')
+            row.prop(item, "name", text="", emboss=False)
+        elif self.layout_type == 'GRID':
+            layout.alignment = 'CENTER'
+            layout.label(text=item.name, icon='WORKSPACE')
+
 
 class SPRITESHEET_UL_clip_list(bpy.types.UIList):
     """UIList for animation clips"""
@@ -28,12 +40,70 @@ class SPRITESHEET_PT_main(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        # Main panel acts as container, subpanels do the drawing.
-        # But we can display a brief info/status if empty.
-        collection, index_name, owner = get_clip_context(context)
-        if len(collection) == 0:
-            layout.label(text="Get started by adding an animation clip.")
-            layout.operator("spritesheet.add_clip", text="Add Animation Clip", icon='ADD')
+        scene = context.scene
+        if len(scene.spritesheet_workspaces) == 0:
+            layout.label(text="Add a Workspace to get started.", icon='INFO')
+            layout.operator("spritesheet.add_workspace", text="Create Workspace", icon='ADD')
+        else:
+            collection, index_name, owner = get_clip_context(context)
+            if collection is None or len(collection) == 0:
+                layout.separator()
+                layout.label(text="Get started by adding an animation clip to this workspace.")
+                layout.operator("spritesheet.add_clip", text="Add Animation Clip", icon='ADD')
+
+
+class SPRITESHEET_PT_workspace(bpy.types.Panel):
+    bl_label = "Workspace"
+    bl_idname = "SPRITESHEET_PT_workspace"
+    bl_parent_id = "SPRITESHEET_PT_main"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.spritesheet_workspaces) > 0
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        row = layout.row(align=True)
+        # Unique row workspace selector list
+        row.template_list(
+            "SPRITESHEET_UL_workspace_list", "",
+            scene, "spritesheet_workspaces",
+            scene, "active_workspace_index",
+            rows=1
+        )
+        col = row.column(align=True)
+        col.operator("spritesheet.add_workspace", text="", icon='ADD')
+        col.operator("spritesheet.remove_workspace", text="", icon='REMOVE')
+        col.operator("spritesheet.duplicate_workspace", text="", icon='DUPLICATE')
+
+        idx = scene.active_workspace_index
+        if 0 <= idx < len(scene.spritesheet_workspaces):
+            ws = scene.spritesheet_workspaces[idx]
+            
+            box = layout.box()
+            box.prop(ws, "name", text="Workspace Name")
+            box.prop(ws, "output_name", text="Output Name")
+            box.prop(ws, "output_folder", text="Output Path")
+            box.prop(ws, "default_camera", text="Default Camera")
+
+            box.separator()
+            box.label(text="Default Collections:", icon='OUTLINER_COLLECTION')
+            
+            col_box = box.column(align=True)
+            for c_idx, item in enumerate(ws.default_collections):
+                crow = col_box.row(align=True)
+                crow.prop(item, "collection", text="")
+                if item.collection is None and item.collection_name != "":
+                    crow.label(text=f"⚠️ Missing: {item.collection_name}")
+                op = crow.operator("spritesheet.remove_ws_collection", text="", icon='REMOVE')
+                op.index = c_idx
+            
+            brow = box.row()
+            brow.operator("spritesheet.add_ws_collection", text="Add Default Collection", icon='ADD')
 
 
 class SPRITESHEET_PT_clips(bpy.types.Panel):
@@ -90,24 +160,31 @@ class SPRITESHEET_PT_clips(bpy.types.Panel):
             row.prop(clip, "frame_step", text="Step")
             row.prop(clip, "fps", text="FPS")
             
-            box.prop(clip, "camera", text="Camera Override")
-            
-            box.separator()
-            box.label(text="Included Collections (Whitelist):", icon='OUTLINER_COLLECTION')
-            
-            col_box = box.column(align=True)
-            for idx, item in enumerate(clip.included_collections):
-                row = col_box.row(align=True)
-                row.prop(item, "collection", text="")
-                
-                if item.collection is None and item.collection_name != "":
-                    row.label(text=f"⚠️ Missing: {item.collection_name}")
-                    
-                op = row.operator("spritesheet.remove_included_collection", text="", icon='REMOVE')
-                op.index = idx
-                
+            # Camera Override
             row = box.row()
-            row.operator("spritesheet.add_included_collection", text="Add Collection", icon='ADD')
+            row.prop(clip, "use_camera_override", text="Camera Override")
+            if clip.use_camera_override:
+                box.prop(clip, "camera", text="Camera")
+            
+            # Collection Override
+            box.separator()
+            box.prop(clip, "use_collection_override", text="Collection Override")
+            if clip.use_collection_override:
+                box.label(text="Included Collections (Override):", icon='OUTLINER_COLLECTION')
+                
+                col_box = box.column(align=True)
+                for c_idx, item in enumerate(clip.included_collections):
+                    crow = col_box.row(align=True)
+                    crow.prop(item, "collection", text="")
+                    
+                    if item.collection is None and item.collection_name != "":
+                        crow.label(text=f"⚠️ Missing: {item.collection_name}")
+                        
+                    op = crow.operator("spritesheet.remove_included_collection", text="", icon='REMOVE')
+                    op.index = c_idx
+                    
+                crow = box.row()
+                crow.operator("spritesheet.add_included_collection", text="Add Collection", icon='ADD')
 
 
 class SPRITESHEET_PT_preview(bpy.types.Panel):
@@ -218,13 +295,16 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        export_settings = scene.spritesheet_export
-        collection, index_name, owner = get_clip_context(context)
-        idx = getattr(owner, index_name)
-        clip = collection[idx]
         
-        layout.prop(export_settings, "sheet_name", text="Sheet Name")
-        layout.prop(export_settings, "output_folder", text="Output Path")
+        ws = get_active_workspace(context)
+        if ws:
+            export_settings = ws.export_settings
+            layout.prop(ws, "output_name", text="Output Name")
+            layout.prop(ws, "output_folder", text="Output Path")
+        else:
+            export_settings = scene.spritesheet_export
+            layout.prop(export_settings, "sheet_name", text="Sheet Name")
+            layout.prop(export_settings, "output_folder", text="Output Path")
         
         # Frame size and packaging
         row = layout.row(align=True)
@@ -242,6 +322,7 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
         layout.prop(export_settings, "export_png_sequence", text="Export individual PNG sequence")
         
         # Stats & Verification
+        collection, index_name, owner = get_clip_context(context)
         clips_to_export = [c for c in collection if c.include_in_export]
         n_selected = sum(sum(1 for f in c.frames if f.selected) for c in clips_to_export)
         
@@ -278,7 +359,6 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
         layout.operator("spritesheet.export_clip", text="EXPORT SPRITESHEET", icon='EXPORT')
         
         if not is_valid:
-            # Show validation error message in small font
             box = layout.box()
             col = box.column()
             col.label(text="Cannot Export:")
@@ -286,8 +366,10 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
 
 
 classes = (
+    SPRITESHEET_UL_workspace_list,
     SPRITESHEET_UL_clip_list,
     SPRITESHEET_PT_main,
+    SPRITESHEET_PT_workspace,
     SPRITESHEET_PT_clips,
     SPRITESHEET_PT_preview,
     SPRITESHEET_PT_selection,

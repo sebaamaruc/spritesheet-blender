@@ -58,8 +58,11 @@ def render_selected_frames(clip, export_settings, context):
         apply_clip_visibility(context, clip)
         
         # Active camera override if specified
-        if clip.camera:
-            scene.camera = clip.camera
+        from .utils import resolve_clip_camera, get_active_workspace
+        ws = get_active_workspace(context)
+        resolved_cam = resolve_clip_camera(ws, clip, scene)
+        if resolved_cam:
+            scene.camera = resolved_cam
             
         for idx, frame_item in enumerate(selected_frames):
             frame_num = frame_item.frame_number
@@ -157,8 +160,11 @@ def render_multi_clip_frames(clips_to_export, export_settings, context):
                 raise e
                 
             # Configure camera override for this clip if specified
-            if clip.camera:
-                scene.camera = clip.camera
+            from .utils import resolve_clip_camera, get_active_workspace
+            ws = get_active_workspace(context)
+            resolved_cam = resolve_clip_camera(ws, clip, scene)
+            if resolved_cam:
+                scene.camera = resolved_cam
             else:
                 scene.camera = orig_settings['camera']
                 

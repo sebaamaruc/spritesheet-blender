@@ -74,9 +74,13 @@ def generate_clip_previews(clip, context):
             return False
             
         # Determine target camera with fallbacks
+        from .utils import resolve_clip_camera, get_active_workspace
+        ws = get_active_workspace(context)
+        resolved_cam = resolve_clip_camera(ws, clip, scene)
+        
         target_camera = None
-        if clip.camera:
-            target_camera = clip.camera
+        if resolved_cam:
+            target_camera = resolved_cam
         elif scene.camera:
             target_camera = scene.camera
         else:

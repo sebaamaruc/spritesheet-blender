@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "spritesheet_frame_selector"
-version = "0.1.0"
+version = "0.2.0"
 name = "SpriteSheet Frame Selector"
 tagline = "Visual frame selection and spritesheet export for animations"
 maintainer = "Developer <dev@example.com>"

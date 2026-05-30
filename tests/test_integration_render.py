@@ -415,6 +415,84 @@ class TestIntegrationRender(unittest.TestCase):
         clips_keys = list(data["clips"].keys())
         self.assertEqual(clips_keys, ["ClipA", "ClipC", "ClipB"])
 
+    def test_workspace_persistence(self):
+        # 1. Clear workspaces
+        self.scene.spritesheet_workspaces.clear()
+        self.scene.active_workspace_index = 0
+        
+        # 2. Create Workspace
+        ws = self.scene.spritesheet_workspaces.add()
+        ws.name = "MyTestWorkspace"
+        ws.output_name = "test_output"
+        ws.output_folder = "/tmp/test"
+        ws.default_camera = self.camera_obj
+        
+        # Add default collections
+        item = ws.default_collections.add()
+        item.collection = self.coll_char
+        item.collection_name = self.coll_char.name
+        
+        # Add Export Settings
+        ws.export_settings.frame_width = 128
+        ws.export_settings.frame_height = 128
+        ws.export_settings.columns = 4
+        ws.export_settings.padding = 2
+        ws.export_settings.margin = 5
+        ws.export_settings.transparent = False
+        
+        # Add Clips
+        clip = ws.clips.add()
+        clip.name = "PersistentClip"
+        clip.frame_start = 5
+        clip.frame_end = 15
+        clip.frame_step = 2
+        clip.camera = self.camera_obj
+        clip.use_camera_override = True
+        
+        # Save to temporary blend file
+        temp_blend = os.path.join(self.temp_dir.name, "test_persistence.blend")
+        bpy.ops.wm.save_as_mainfile(filepath=temp_blend)
+        
+        # Clear workspaces in current scene memory to guarantee reload verification
+        self.scene.spritesheet_workspaces.clear()
+        self.assertEqual(len(self.scene.spritesheet_workspaces), 0)
+        
+        # Open back the mainfile
+        bpy.ops.wm.open_mainfile(filepath=temp_blend)
+        
+        # Get active scene from reloaded file
+        reloaded_scene = bpy.context.scene
+        self.assertEqual(len(reloaded_scene.spritesheet_workspaces), 1)
+        reloaded_ws = reloaded_scene.spritesheet_workspaces[0]
+        
+        # Verify Workspace settings
+        self.assertEqual(reloaded_ws.name, "MyTestWorkspace")
+        self.assertEqual(reloaded_ws.output_name, "test_output")
+        self.assertEqual(reloaded_ws.output_folder, "/tmp/test")
+        self.assertEqual(reloaded_ws.default_camera.name, "TestCamera")
+        
+        # Verify default collections
+        self.assertEqual(len(reloaded_ws.default_collections), 1)
+        self.assertEqual(reloaded_ws.default_collections[0].collection.name, "Character_Main")
+        
+        # Verify export settings
+        self.assertEqual(reloaded_ws.export_settings.frame_width, 128)
+        self.assertEqual(reloaded_ws.export_settings.frame_height, 128)
+        self.assertEqual(reloaded_ws.export_settings.columns, 4)
+        self.assertEqual(reloaded_ws.export_settings.padding, 2)
+        self.assertEqual(reloaded_ws.export_settings.margin, 5)
+        self.assertEqual(reloaded_ws.export_settings.transparent, False)
+        
+        # Verify Clips
+        self.assertEqual(len(reloaded_ws.clips), 1)
+        reloaded_clip = reloaded_ws.clips[0]
+        self.assertEqual(reloaded_clip.name, "PersistentClip")
+        self.assertEqual(reloaded_clip.frame_start, 5)
+        self.assertEqual(reloaded_clip.frame_end, 15)
+        self.assertEqual(reloaded_clip.frame_step, 2)
+        self.assertEqual(reloaded_clip.camera.name, "TestCamera")
+        self.assertTrue(reloaded_clip.use_camera_override)
+
 if __name__ == '__main__':
     unittest.main(argv=[sys.argv[0]])
 

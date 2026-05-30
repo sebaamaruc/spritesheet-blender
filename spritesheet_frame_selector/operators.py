@@ -1,6 +1,6 @@
 import bpy
 from .preview_generator import generate_clip_previews, clear_clip_previews
-from .utils import get_clip_context
+from .utils import get_clip_context, get_active_workspace
 
 class SPRITESHEET_OT_add_clip(bpy.types.Operator):
     bl_idname = "spritesheet.add_clip"
@@ -90,6 +90,8 @@ class SPRITESHEET_OT_duplicate_clip(bpy.types.Operator):
         dst.frame_end = src.frame_end
         dst.frame_step = src.frame_step
         dst.camera = src.camera
+        dst.use_camera_override = src.use_camera_override
+        dst.use_collection_override = src.use_collection_override
         dst.preview_size = src.preview_size
         dst.fps = src.fps
         dst.playback_loop = src.playback_loop
@@ -305,7 +307,7 @@ class SPRITESHEET_OT_export_clip(bpy.types.Operator):
         return len(collection) > 0
 
     def execute(self, context):
-        from .utils import validate_export_settings
+        from .utils import validate_export_settings, get_active_workspace
         from .exporter import export_multiple_clips
         
         scene = context.scene
@@ -316,7 +318,12 @@ class SPRITESHEET_OT_export_clip(bpy.types.Operator):
         
         collection, index_name, owner = get_clip_context(context)
         clips = list(collection)
-        export_settings = scene.spritesheet_export
+        
+        ws = get_active_workspace(context)
+        if ws:
+            export_settings = ws.export_settings
+        else:
+            export_settings = scene.spritesheet_export
         
         success = export_multiple_clips(clips, export_settings, context)
         if success:
@@ -447,6 +454,178 @@ class SPRITESHEET_OT_move_clip(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class SPRITESHEET_OT_add_workspace(bpy.types.Operator):
+    bl_idname = "spritesheet.add_workspace"
+    bl_label = "Add Workspace"
+    bl_description = "Add a new export workspace"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        scene = context.scene
+        ws = scene.spritesheet_workspaces.add()
+        ws.name = f"Workspace_{len(scene.spritesheet_workspaces)}"
+        # Initialize default values
+        ws.output_name = "spritesheet"
+        ws.output_folder = ""
+        ws.active_clip_index = 0
+        # Initialize PointerProperty export_settings
+        ws.export_settings.frame_width = 64
+        ws.export_settings.frame_height = 64
+        ws.export_settings.columns = 8
+        ws.export_settings.padding = 0
+        ws.export_settings.margin = 0
+        ws.export_settings.transparent = True
+        ws.export_settings.export_png_sequence = False
+        ws.export_settings.sheet_name = "spritesheet"
+
+        scene.active_workspace_index = len(scene.spritesheet_workspaces) - 1
+        self.report({'INFO'}, f"Added workspace: {ws.name}")
+        return {'FINISHED'}
+
+
+class SPRITESHEET_OT_remove_workspace(bpy.types.Operator):
+    bl_idname = "spritesheet.remove_workspace"
+    bl_label = "Remove Workspace"
+    bl_description = "Remove the active export workspace"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.spritesheet_workspaces) > 0
+
+    def execute(self, context):
+        scene = context.scene
+        idx = scene.active_workspace_index
+        if idx < 0 or idx >= len(scene.spritesheet_workspaces):
+            self.report({'WARNING'}, "No active workspace selected")
+            return {'CANCELLED'}
+
+        ws_name = scene.spritesheet_workspaces[idx].name
+        scene.spritesheet_workspaces.remove(idx)
+        scene.active_workspace_index = max(0, idx - 1)
+        self.report({'INFO'}, f"Removed workspace: {ws_name}")
+        return {'FINISHED'}
+
+
+class SPRITESHEET_OT_duplicate_workspace(bpy.types.Operator):
+    bl_idname = "spritesheet.duplicate_workspace"
+    bl_label = "Duplicate Workspace"
+    bl_description = "Duplicate the active export workspace and its configuration"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.spritesheet_workspaces) > 0
+
+    def execute(self, context):
+        scene = context.scene
+        idx = scene.active_workspace_index
+        if idx < 0 or idx >= len(scene.spritesheet_workspaces):
+            self.report({'WARNING'}, "No active workspace selected")
+            return {'CANCELLED'}
+
+        src = scene.spritesheet_workspaces[idx]
+        dst = scene.spritesheet_workspaces.add()
+        dst.name = f"{src.name}_copy"
+        dst.output_name = src.output_name
+        dst.output_folder = src.output_folder
+        dst.default_camera = src.default_camera
+
+        # Copy default_collections (by reference to the same Blender collections)
+        for src_coll in src.default_collections:
+            dst_coll = dst.default_collections.add()
+            dst_coll.collection = src_coll.collection
+            dst_coll.collection_name = src_coll.collection_name
+
+        # Copy export_settings
+        dst.export_settings.frame_width = src.export_settings.frame_width
+        dst.export_settings.frame_height = src.export_settings.frame_height
+        dst.export_settings.columns = src.export_settings.columns
+        dst.export_settings.padding = src.export_settings.padding
+        dst.export_settings.margin = src.export_settings.margin
+        dst.export_settings.transparent = src.export_settings.transparent
+        dst.export_settings.export_png_sequence = src.export_settings.export_png_sequence
+        dst.export_settings.sheet_name = src.export_settings.sheet_name
+
+        # Copy clips
+        for src_clip in src.clips:
+            dst_clip = dst.clips.add()
+            dst_clip.name = src_clip.name
+            dst_clip.include_in_export = src_clip.include_in_export
+            dst_clip.frame_start = src_clip.frame_start
+            dst_clip.frame_end = src_clip.frame_end
+            dst_clip.frame_step = src_clip.frame_step
+            dst_clip.camera = src_clip.camera
+            dst_clip.use_camera_override = src_clip.use_camera_override
+            dst_clip.use_collection_override = src_clip.use_collection_override
+            dst_clip.preview_size = src_clip.preview_size
+            dst_clip.fps = src_clip.fps
+            dst_clip.playback_loop = src_clip.playback_loop
+
+            # Copy collection references (included_collections)
+            for src_included in src_clip.included_collections:
+                dst_included = dst_clip.included_collections.add()
+                dst_included.collection = src_included.collection
+                dst_included.collection_name = src_included.collection_name
+
+            # Copy frames and selection state
+            for src_frame in src_clip.frames:
+                dst_frame = dst_clip.frames.add()
+                dst_frame.frame_number = src_frame.frame_number
+                dst_frame.selected = src_frame.selected
+                dst_frame.preview_path = src_frame.preview_path
+
+        scene.active_workspace_index = len(scene.spritesheet_workspaces) - 1
+        self.report({'INFO'}, f"Duplicated workspace: {src.name} to {dst.name}")
+        return {'FINISHED'}
+
+
+class SPRITESHEET_OT_add_ws_collection(bpy.types.Operator):
+    bl_idname = "spritesheet.add_ws_collection"
+    bl_label = "Add Workspace Collection"
+    bl_description = "Add a collection to the workspace default visibility whitelist"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.spritesheet_workspaces) > 0
+
+    def execute(self, context):
+        ws = get_active_workspace(context)
+        if ws:
+            ws.default_collections.add()
+            for clip in ws.clips:
+                clip.cache_dirty = True
+            return {'FINISHED'}
+        return {'CANCELLED'}
+
+
+class SPRITESHEET_OT_remove_ws_collection(bpy.types.Operator):
+    bl_idname = "spritesheet.remove_ws_collection"
+    bl_label = "Remove Workspace Collection"
+    bl_description = "Remove a collection from the workspace default visibility whitelist"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    index: bpy.props.IntProperty(name="Index to Remove")
+
+    @classmethod
+    def poll(cls, context):
+        try:
+            ws = get_active_workspace(context)
+            return ws is not None and len(ws.default_collections) > 0
+        except:
+            return False
+
+    def execute(self, context):
+        ws = get_active_workspace(context)
+        if ws and 0 <= self.index < len(ws.default_collections):
+            ws.default_collections.remove(self.index)
+            for clip in ws.clips:
+                clip.cache_dirty = True
+            return {'FINISHED'}
+        return {'CANCELLED'}
+
+
 classes = (
     SPRITESHEET_OT_set_playback_fps,
     SPRITESHEET_OT_add_clip,
@@ -464,6 +643,11 @@ classes = (
     SPRITESHEET_OT_export_clip,
     SPRITESHEET_OT_add_included_collection,
     SPRITESHEET_OT_remove_included_collection,
+    SPRITESHEET_OT_add_workspace,
+    SPRITESHEET_OT_remove_workspace,
+    SPRITESHEET_OT_duplicate_workspace,
+    SPRITESHEET_OT_add_ws_collection,
+    SPRITESHEET_OT_remove_ws_collection,
 )
 
 def register():

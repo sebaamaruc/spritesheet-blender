@@ -99,8 +99,20 @@ def validate_export_settings(scene):
     if not has_selected_frames:
         return False, "No frames selected for export in any of the included clips. Open the Visual Selector and select frames."
         
+    # Resolve Workspace
+    try:
+        ws = get_active_workspace(bpy.context)
+    except:
+        ws = None
+
     # Check export settings pointer
-    export_settings = scene.spritesheet_export
+    if ws:
+        export_settings = ws.export_settings
+        output_folder = ws.output_folder
+    else:
+        export_settings = scene.spritesheet_export
+        output_folder = export_settings.output_folder if export_settings else ""
+
     if not export_settings:
         return False, "Export settings are missing."
         
@@ -110,13 +122,12 @@ def validate_export_settings(scene):
     if export_settings.columns <= 0:
         return False, "Columns count must be greater than 0."
         
-    if not export_settings.output_folder:
+    if not output_folder:
         return False, "Output folder is not set."
         
     # Check output directory
-    out_dir = resolve_blend_path(export_settings.output_folder)
+    out_dir = resolve_blend_path(output_folder)
     if not os.path.exists(out_dir):
-        # Walk up to find the first existing parent directory to check permissions
         curr = out_dir
         parent_found = False
         while curr:
@@ -138,28 +149,34 @@ def validate_export_settings(scene):
         if not os.access(out_dir, os.W_OK):
             return False, f"Output directory '{out_dir}' is not writable."
             
-    # Check camera override or active camera for each clip with selected frames,
+    # Check camera override/workspace camera or active camera,
     # and also validate included_collections.
     for clip in clips_to_export:
         if not any(f.selected for f in clip.frames):
             continue
             
         # 1. Camera validation
-        cam = clip.camera if clip.camera else scene.camera
+        cam = resolve_clip_camera(ws, clip, scene)
         if not cam:
-            return False, f"No active camera or camera override for clip '{clip.name}'."
+            if ws:
+                return False, f"Workspace '{ws.name}' has no default camera and clip '{clip.name}' has no camera override."
+            else:
+                return False, f"No active camera or camera override for clip '{clip.name}'."
             
         if cam.type != 'CAMERA':
             return False, f"Selected object '{cam.name}' for clip '{clip.name}' is not a camera."
             
         # 2. Included Collections validation
-        included_items = list(clip.included_collections)
-        if not included_items:
-            return False, f"Clip '{clip.name}' has no included collections. Add at least one collection."
+        resolved_colls = resolve_clip_collections(ws, clip)
+        if not resolved_colls:
+            if ws:
+                return False, f"Workspace '{ws.name}' has no default collections and clip '{clip.name}' has no collection override."
+            else:
+                return False, f"Clip '{clip.name}' has no included collections. Add at least one collection."
             
-        valid_collections = [item.collection for item in included_items if item.collection is not None]
+        valid_collections = [item.collection for item in resolved_colls if item.collection is not None]
         if not valid_collections:
-            deleted_names = [item.collection_name for item in included_items if item.collection_name != ""]
+            deleted_names = [item.collection_name for item in resolved_colls if item.collection_name != ""]
             if deleted_names:
                 return False, f"Clip '{clip.name}' collections {deleted_names} no longer exist in the scene."
             else:
@@ -200,8 +217,13 @@ def apply_clip_visibility(context, clip):
     """
     view_layer = context.view_layer
     
+    # Resolve workspace
+    ws = get_active_workspace(context)
+    resolved_collections = resolve_clip_collections(ws, clip)
+    clip_camera = resolve_clip_camera(ws, clip, context.scene)
+    
     # 1. Filter out empty references and check if we have any collections
-    included_items = list(clip.included_collections)
+    included_items = list(resolved_collections)
     valid_collections = [item.collection for item in included_items if item.collection is not None]
     
     # Show warnings for deleted collections (where pointer is None but collection_name is set)
@@ -266,10 +288,9 @@ def apply_clip_visibility(context, clip):
             add_descendants(layer_coll)
             
     # 4. Camera automatic visibility override:
-    # Find active camera for the clip (hierarchical fallback matching preview_generator / render_queue)
     target_camera = None
-    if clip.camera:
-        target_camera = clip.camera
+    if clip_camera:
+        target_camera = clip_camera
     elif context.scene.camera:
         target_camera = context.scene.camera
     else:
@@ -480,21 +501,72 @@ class WorldSwapContext:
 
 def get_clip_context(context):
     """
-    Returns a tuple (collection, index_prop_name, owner_data_block)
-    to abstract the clip list access for UI panels and operators.
-    Fase 1: Scene-level global collection.
-    Fase 2: active_workspace.clips.
+    Retorna (collection, index_prop_name, owner_data_block).
+    Si no hay workspace configurado, retorna la colección legacy en scene para evitar romper la UI antigua.
     """
-    scene = context.scene
-    return scene.spritesheet_clips, "active_clip_index", scene
+    ws = get_active_workspace(context)
+    if ws is None:
+        scene = context.scene
+        return getattr(scene, "spritesheet_clips", None), "active_clip_index", scene
+    return ws.clips, "active_clip_index", ws
 
 
 def get_clip_collection_name(context):
     """
     Returns the string name of the clips collection property on the owner.
-    Fase 1: "spritesheet_clips"
-    Fase 2: "clips"
     """
-    return "spritesheet_clips"
+    ws = get_active_workspace(context)
+    if ws is None:
+        return "spritesheet_clips"
+    return "clips"
+
+
+def get_active_workspace(context):
+    """Retorna el workspace activo o None."""
+    scene = context.scene
+    workspaces = getattr(scene, "spritesheet_workspaces", None)
+    if not workspaces or len(workspaces) == 0:
+        return None
+    idx = min(scene.active_workspace_index, len(workspaces) - 1)
+    return workspaces[idx]
+
+
+def resolve_clip_camera(workspace, clip, scene):
+    """Resuelve la cámara efectiva para un clip.
+    Chequea en orden:
+    1. Si use_camera_override es True y clip.camera está seteada -> clip.camera (override local)
+    2. Si workspace y workspace.default_camera está seteada -> workspace.default_camera
+    3. Si clip.camera está seteada (legacy fallback / compatibilidad) -> clip.camera
+    4. Si no hay workspace (modo legacy puro) -> scene.camera (legacy fallback / compatibilidad)
+    5. De lo contrario -> None (NO fallback a scene.camera si hay workspace activo)
+    """
+    if getattr(clip, "use_camera_override", False) and clip.camera:
+        return clip.camera
+    if workspace and workspace.default_camera:
+        return workspace.default_camera
+    if clip.camera:
+        return clip.camera
+    if workspace is None:
+        return scene.camera
+    return None
+
+
+def resolve_clip_collections(workspace, clip):
+    """Resuelve las colecciones efectivas para un clip.
+    Retorna una lista de SpriteSheetIncludedCollection items, o lista vacía.
+    Chequea en orden:
+    1. Si use_collection_override es True y tiene elementos -> clip.included_collections
+    2. Si workspace.default_collections tiene elementos -> workspace.default_collections
+    3. Si no hay overrides ni defaults pero el clip tiene colecciones legacy -> clip.included_collections
+    4. De lo contrario -> []
+    """
+    if getattr(clip, "use_collection_override", False) and len(clip.included_collections) > 0:
+        return list(clip.included_collections)
+    if workspace and len(workspace.default_collections) > 0:
+        return list(workspace.default_collections)
+    if len(clip.included_collections) > 0:  # Legacy fallback si no hay configuraciones del workspace
+        return list(clip.included_collections)
+    return []
+
 
 

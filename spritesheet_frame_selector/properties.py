@@ -24,13 +24,25 @@ def on_clip_settings_change(self, context):
 def update_collection_name(self, context):
     if self.collection:
         self.collection_name = self.collection.name
-    from .utils import get_clip_context
-    collection, _, _ = get_clip_context(context)
-    for clip in collection:
-        for item in clip.included_collections:
-            if item == self:
+    
+    # Mark cache dirty on all clips that might be affected in the active workspace
+    from .utils import get_active_workspace
+    try:
+        ws = get_active_workspace(context)
+        if ws:
+            for clip in ws.clips:
                 clip.cache_dirty = True
-                return
+    except Exception as e:
+        print(f"properties: error updating cache for workspace clips: {e}")
+    
+    # Fallback to legacy clips
+    try:
+        scene = context.scene
+        if hasattr(scene, "spritesheet_clips"):
+            for clip in scene.spritesheet_clips:
+                clip.cache_dirty = True
+    except Exception as e:
+        print(f"properties: error updating cache for legacy clips: {e}")
 
 class SpriteSheetIncludedCollection(bpy.types.PropertyGroup):
     collection: bpy.props.PointerProperty(
@@ -77,8 +89,18 @@ class SpriteSheetClip(bpy.types.PropertyGroup):
         poll=poll_camera,
         update=on_clip_settings_change
     )
+    use_camera_override: bpy.props.BoolProperty(
+        name="Use Camera Override",
+        default=False,
+        update=on_clip_settings_change
+    )
     included_collections: bpy.props.CollectionProperty(
         type=SpriteSheetIncludedCollection
+    )
+    use_collection_override: bpy.props.BoolProperty(
+        name="Use Collection Override",
+        default=False,
+        update=on_clip_settings_change
     )
     preview_size: bpy.props.EnumProperty(
         name="Preview Size",
@@ -147,6 +169,12 @@ class SpriteSheetExportSettings(bpy.types.PropertyGroup):
         name="Transparent",
         default=True
     )
+    export_png_sequence: bpy.props.BoolProperty(
+        name="Export PNG Sequence",
+        description="Also export individual PNG frames",
+        default=False
+    )
+    # Legacy compatibility fields (output_folder and sheet_name)
     output_folder: bpy.props.StringProperty(
         name="Output Folder",
         description="Folder where the spritesheet will be saved",
@@ -157,10 +185,39 @@ class SpriteSheetExportSettings(bpy.types.PropertyGroup):
         name="Sheet Name",
         default="spritesheet"
     )
-    export_png_sequence: bpy.props.BoolProperty(
-        name="Export PNG Sequence",
-        description="Also export individual PNG frames",
-        default=False
+
+
+class SpriteSheetWorkspace(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty(
+        name="Workspace Name",
+        default="Workspace"
+    )
+    output_name: bpy.props.StringProperty(
+        name="Output Name",
+        default="spritesheet"
+    )
+    output_folder: bpy.props.StringProperty(
+        name="Output Folder",
+        description="Folder where the spritesheet will be saved",
+        default="",
+        subtype='DIR_PATH'
+    )
+    default_camera: bpy.props.PointerProperty(
+        name="Default Camera",
+        type=bpy.types.Object,
+        poll=poll_camera
+    )
+    default_collections: bpy.props.CollectionProperty(
+        type=SpriteSheetIncludedCollection
+    )
+    clips: bpy.props.CollectionProperty(
+        type=SpriteSheetClip
+    )
+    active_clip_index: bpy.props.IntProperty(
+        default=0
+    )
+    export_settings: bpy.props.PointerProperty(
+        type=SpriteSheetExportSettings
     )
 
 
@@ -169,17 +226,28 @@ classes = (
     SpriteSheetIncludedCollection,
     SpriteSheetClip,
     SpriteSheetExportSettings,
+    SpriteSheetWorkspace,
 )
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     
+    # Legacy registrations
     bpy.types.Scene.spritesheet_clips = bpy.props.CollectionProperty(type=SpriteSheetClip)
     bpy.types.Scene.active_clip_index = bpy.props.IntProperty(default=0)
     bpy.types.Scene.spritesheet_export = bpy.props.PointerProperty(type=SpriteSheetExportSettings)
+    
+    # Workspace V1 registrations
+    bpy.types.Scene.spritesheet_workspaces = bpy.props.CollectionProperty(type=SpriteSheetWorkspace)
+    bpy.types.Scene.active_workspace_index = bpy.props.IntProperty(default=0)
 
 def unregister():
+    # Workspace V1 deregistrations
+    del bpy.types.Scene.active_workspace_index
+    del bpy.types.Scene.spritesheet_workspaces
+    
+    # Legacy deregistrations
     del bpy.types.Scene.spritesheet_export
     del bpy.types.Scene.active_clip_index
     del bpy.types.Scene.spritesheet_clips
