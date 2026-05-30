@@ -49,14 +49,8 @@ def export_multiple_clips(clips, export_settings, context):
     5. Writes JSON metadata.
     6. Cleans up temporary render directories.
     """
-    from .utils import get_active_workspace
-    ws = get_active_workspace(context)
-    if ws:
-        output_folder = ws.output_folder
-        sheet_name = ws.output_name
-    else:
-        output_folder = export_settings.output_folder
-        sheet_name = export_settings.sheet_name
+    output_folder = export_settings.output_folder
+    sheet_name = export_settings.sheet_name
 
     output_dir = resolve_blend_path(output_folder)
     os.makedirs(output_dir, exist_ok=True)

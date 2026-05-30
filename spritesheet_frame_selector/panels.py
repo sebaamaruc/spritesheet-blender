@@ -44,12 +44,6 @@ class SPRITESHEET_PT_main(bpy.types.Panel):
         if len(scene.spritesheet_workspaces) == 0:
             layout.label(text="Add a Workspace to get started.", icon='INFO')
             layout.operator("spritesheet.add_workspace", text="Create Workspace", icon='ADD')
-        else:
-            collection, index_name, owner = get_clip_context(context)
-            if collection is None or len(collection) == 0:
-                layout.separator()
-                layout.label(text="Get started by adding an animation clip to this workspace.")
-                layout.operator("spritesheet.add_clip", text="Add Animation Clip", icon='ADD')
 
 
 class SPRITESHEET_PT_workspace(bpy.types.Panel):
@@ -85,9 +79,6 @@ class SPRITESHEET_PT_workspace(bpy.types.Panel):
             ws = scene.spritesheet_workspaces[idx]
             
             box = layout.box()
-            box.prop(ws, "name", text="Workspace Name")
-            box.prop(ws, "output_name", text="Output Name")
-            box.prop(ws, "output_folder", text="Output Path")
             box.prop(ws, "default_camera", text="Default Camera")
 
             box.separator()
@@ -115,14 +106,17 @@ class SPRITESHEET_PT_clips(bpy.types.Panel):
     
     @classmethod
     def poll(cls, context):
-        collection, index_name, owner = get_clip_context(context)
-        idx = getattr(owner, index_name)
-        return (len(collection) > 0
-                and 0 <= idx < len(collection))
+        return len(context.scene.spritesheet_workspaces) > 0
 
     def draw(self, context):
         layout = self.layout
         collection, index_name, owner = get_clip_context(context)
+        
+        if collection is None or len(collection) == 0:
+            layout.label(text="Get started by adding an animation clip to this workspace.")
+            layout.operator("spritesheet.add_clip", text="Add Animation Clip", icon='ADD')
+            return
+            
         collection_name = get_clip_collection_name(context)
         idx = getattr(owner, index_name)
         
@@ -156,9 +150,7 @@ class SPRITESHEET_PT_clips(bpy.types.Panel):
             row.prop(clip, "frame_start", text="Start")
             row.prop(clip, "frame_end", text="End")
             
-            row = box.row(align=True)
-            row.prop(clip, "frame_step", text="Step")
-            row.prop(clip, "fps", text="FPS")
+            box.prop(clip, "frame_step", text="Step")
             
             # Camera Override
             row = box.row()
@@ -188,7 +180,7 @@ class SPRITESHEET_PT_clips(bpy.types.Panel):
 
 
 class SPRITESHEET_PT_preview(bpy.types.Panel):
-    bl_label = "Preview Cache"
+    bl_label = "Spritesheet Preview"
     bl_idname = "SPRITESHEET_PT_preview"
     bl_parent_id = "SPRITESHEET_PT_main"
     bl_space_type = 'VIEW_3D'
@@ -299,14 +291,10 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
         ws = get_active_workspace(context)
         if ws:
             export_settings = ws.export_settings
-            layout.prop(ws, "output_name", text="Output Name")
-            layout.prop(ws, "output_folder", text="Output Path")
         else:
             export_settings = scene.spritesheet_export
-            layout.prop(export_settings, "sheet_name", text="Sheet Name")
-            layout.prop(export_settings, "output_folder", text="Output Path")
         
-        # Frame size and packaging
+        # 1. Technical settings (above)
         row = layout.row(align=True)
         row.prop(export_settings, "frame_width", text="Width")
         row.prop(export_settings, "frame_height", text="Height")
@@ -320,6 +308,12 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
         row.prop(export_settings, "margin", text="Margin")
         
         layout.prop(export_settings, "export_png_sequence", text="Export individual PNG sequence")
+        
+        layout.separator()
+        
+        # 2. Output fields (below)
+        layout.prop(export_settings, "sheet_name", text="Output Name")
+        layout.prop(export_settings, "output_folder", text="Output Path")
         
         # Stats & Verification
         collection, index_name, owner = get_clip_context(context)

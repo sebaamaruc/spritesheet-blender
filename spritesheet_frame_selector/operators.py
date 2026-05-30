@@ -465,8 +465,6 @@ class SPRITESHEET_OT_add_workspace(bpy.types.Operator):
         ws = scene.spritesheet_workspaces.add()
         ws.name = f"Workspace_{len(scene.spritesheet_workspaces)}"
         # Initialize default values
-        ws.output_name = "spritesheet"
-        ws.output_folder = ""
         ws.active_clip_index = 0
         # Initialize PointerProperty export_settings
         ws.export_settings.frame_width = 64
@@ -527,8 +525,6 @@ class SPRITESHEET_OT_duplicate_workspace(bpy.types.Operator):
         src = scene.spritesheet_workspaces[idx]
         dst = scene.spritesheet_workspaces.add()
         dst.name = f"{src.name}_copy"
-        dst.output_name = src.output_name
-        dst.output_folder = src.output_folder
         dst.default_camera = src.default_camera
 
         # Copy default_collections (by reference to the same Blender collections)
@@ -546,6 +542,7 @@ class SPRITESHEET_OT_duplicate_workspace(bpy.types.Operator):
         dst.export_settings.transparent = src.export_settings.transparent
         dst.export_settings.export_png_sequence = src.export_settings.export_png_sequence
         dst.export_settings.sheet_name = src.export_settings.sheet_name
+        dst.export_settings.output_folder = src.export_settings.output_folder
 
         # Copy clips
         for src_clip in src.clips:

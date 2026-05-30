@@ -21,6 +21,11 @@ class SpriteSheetFrameItem(bpy.types.PropertyGroup):
 def on_clip_settings_change(self, context):
     self.cache_dirty = True
 
+def update_use_collection_override(self, context):
+    self.cache_dirty = True
+    if self.use_collection_override and len(self.included_collections) == 0:
+        self.included_collections.add()
+
 def update_collection_name(self, context):
     if self.collection:
         self.collection_name = self.collection.name
@@ -100,7 +105,7 @@ class SpriteSheetClip(bpy.types.PropertyGroup):
     use_collection_override: bpy.props.BoolProperty(
         name="Use Collection Override",
         default=False,
-        update=on_clip_settings_change
+        update=update_use_collection_override
     )
     preview_size: bpy.props.EnumProperty(
         name="Preview Size",
@@ -191,16 +196,6 @@ class SpriteSheetWorkspace(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(
         name="Workspace Name",
         default="Workspace"
-    )
-    output_name: bpy.props.StringProperty(
-        name="Output Name",
-        default="spritesheet"
-    )
-    output_folder: bpy.props.StringProperty(
-        name="Output Folder",
-        description="Folder where the spritesheet will be saved",
-        default="",
-        subtype='DIR_PATH'
     )
     default_camera: bpy.props.PointerProperty(
         name="Default Camera",

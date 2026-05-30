@@ -423,8 +423,8 @@ class TestIntegrationRender(unittest.TestCase):
         # 2. Create Workspace
         ws = self.scene.spritesheet_workspaces.add()
         ws.name = "MyTestWorkspace"
-        ws.output_name = "test_output"
-        ws.output_folder = "/tmp/test"
+        ws.export_settings.sheet_name = "test_output"
+        ws.export_settings.output_folder = "/tmp/test"
         ws.default_camera = self.camera_obj
         
         # Add default collections
@@ -467,8 +467,8 @@ class TestIntegrationRender(unittest.TestCase):
         
         # Verify Workspace settings
         self.assertEqual(reloaded_ws.name, "MyTestWorkspace")
-        self.assertEqual(reloaded_ws.output_name, "test_output")
-        self.assertEqual(reloaded_ws.output_folder, "/tmp/test")
+        self.assertEqual(reloaded_ws.export_settings.sheet_name, "test_output")
+        self.assertEqual(reloaded_ws.export_settings.output_folder, "/tmp/test")
         self.assertEqual(reloaded_ws.default_camera.name, "TestCamera")
         
         # Verify default collections

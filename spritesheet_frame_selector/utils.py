@@ -108,10 +108,10 @@ def validate_export_settings(scene):
     # Check export settings pointer
     if ws:
         export_settings = ws.export_settings
-        output_folder = ws.output_folder
     else:
         export_settings = scene.spritesheet_export
-        output_folder = export_settings.output_folder if export_settings else ""
+        
+    output_folder = export_settings.output_folder if export_settings else ""
 
     if not export_settings:
         return False, "Export settings are missing."
