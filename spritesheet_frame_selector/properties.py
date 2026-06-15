@@ -192,6 +192,11 @@ class SpriteSheetExportSettings(bpy.types.PropertyGroup):
     )
 
 
+def update_workspace_default_camera(self, context):
+    for clip in self.clips:
+        clip.cache_dirty = True
+
+
 class SpriteSheetWorkspace(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(
         name="Workspace Name",
@@ -200,7 +205,8 @@ class SpriteSheetWorkspace(bpy.types.PropertyGroup):
     default_camera: bpy.props.PointerProperty(
         name="Default Camera",
         type=bpy.types.Object,
-        poll=poll_camera
+        poll=poll_camera,
+        update=update_workspace_default_camera
     )
     default_collections: bpy.props.CollectionProperty(
         type=SpriteSheetIncludedCollection

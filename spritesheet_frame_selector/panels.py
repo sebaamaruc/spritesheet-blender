@@ -189,6 +189,8 @@ class SPRITESHEET_PT_preview(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         collection, index_name, owner = get_clip_context(context)
+        if collection is None:
+            return False
         idx = getattr(owner, index_name)
         return (len(collection) > 0
                 and 0 <= idx < len(collection))
@@ -233,6 +235,8 @@ class SPRITESHEET_PT_selection(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         collection, index_name, owner = get_clip_context(context)
+        if collection is None:
+            return False
         if len(collection) == 0:
             return False
         idx = getattr(owner, index_name)
@@ -280,6 +284,8 @@ class SPRITESHEET_PT_export(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         collection, index_name, owner = get_clip_context(context)
+        if collection is None:
+            return False
         idx = getattr(owner, index_name)
         return (len(collection) > 0
                 and 0 <= idx < len(collection))

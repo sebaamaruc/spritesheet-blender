@@ -527,7 +527,7 @@ def get_active_workspace(context):
     workspaces = getattr(scene, "spritesheet_workspaces", None)
     if not workspaces or len(workspaces) == 0:
         return None
-    idx = min(scene.active_workspace_index, len(workspaces) - 1)
+    idx = max(0, min(scene.active_workspace_index, len(workspaces) - 1))
     return workspaces[idx]
 
 
