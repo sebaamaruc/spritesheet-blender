@@ -10,9 +10,23 @@ Proyecto: spritesheet-blender
 
 Este proyecto usa Project Continuity System (PCS) para persistir contexto operativo dentro del repositorio.
 
+## PCS
+
+Antes de actuar, leer en este orden:
+
+1. `AGENTS.md`
+2. `.context/agent_context.md`
+3. `.context/index.md`
+
+PCS define el estado operativo actual, el plan activo y el proximo paso.
+Las reglas de dominio de este archivo siguen aplicando segun la tarea.
+
+Validar no es cerrar.
+No ejecutar `pcs close`, archivar planes ni marcar `cerrado` sin instruccion explicita de cierre del usuario.
+
 ## Lectura Obligatoria Al Iniciar
 
-Todo agente debe leer, en este orden:
+Estas lecturas se aplican despues de reconstruir el contexto PCS. Todo agente debe leer, en este orden:
 
 1. `AGENTS.md`
 2. `.context/agent_context.md`
@@ -90,6 +104,19 @@ Si el plan activo parece incorrecto, contradictorio o bloqueado, detenerse y reg
 - No duplicar informacion entre archivos; referenciar la fuente de verdad.
 - No editar retroactivamente `.context/worklog.jsonl`.
 - No implementar cambios fuera del alcance solicitado.
+
+## Documentacion Fuente
+
+La documentacion fuente representa guias previas del proyecto, como MVPs, GDDs, roadmaps, research, notas o `current_state` improvisados.
+
+- Guardar documentos fuente en `docs/source/`.
+- Guardar documentos previos sin normalizar en `docs/source/raw/`, preservando su contenido original.
+- Usar `docs/source/index.md` como inventario de lectura.
+- Usar `docs/source/goals.md` para metas o hitos trazables.
+- Usar `docs/source/goals.proposed.md` solo como borrador revisable creado por agentes.
+- No tratar archivos en `docs/source/raw/` como contexto operativo vigente hasta derivarlos a `.context/`, `docs/plans/` o `.context/decisions.md`.
+- Los planes basados en documentacion fuente deben declarar `Documentación Fuente Usada` e `Interpretación Operativa`.
+- Las decisiones deben registrar desviaciones importantes frente a documentos fuente.
 
 ## Proteccion Del Contexto Activo
 

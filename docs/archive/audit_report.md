@@ -39,7 +39,7 @@ Sin embargo, existen **3 bugs críticos** que pueden causar bloqueo de la interf
 > [!CAUTION]
 > El usuario no puede cerrar el Visual Selector con ESC de forma confiable.
 
-**Archivo**: [visual_selector.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/visual_selector.py)
+**Archivo**: [visual_selector.py](../../spritesheet_frame_selector/visual_selector.py)
 **Líneas**: L994 vs L1070
 
 **Causa**: El bloque `elif event.value == 'PRESS'` en L994 captura *todos* los eventos PRESS (incluyendo ESC y RIGHTMOUSE). Como ESC no tiene handler dentro de ese bloque, cae al `return {'RUNNING_MODAL'}` final en L1074. El handler de cierre en L1070 (`elif event.type in {'ESC', 'RIGHTMOUSE'}`) solo se alcanza en eventos RELEASE, lo cual es un comportamiento invertido e inconsistente.
@@ -53,7 +53,7 @@ Sin embargo, existen **3 bugs críticos** que pueden causar bloqueo de la interf
 > [!CAUTION]
 > Degradación severa de rendimiento con grids grandes. Cada frame de dibujo realiza ~200+ asignaciones de memoria GPU.
 
-**Archivo**: [visual_selector.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/visual_selector.py)
+**Archivo**: [visual_selector.py](../../spritesheet_frame_selector/visual_selector.py)
 **Líneas**: L205–213
 
 **Causa**: `gpu.shader.from_builtin('UNIFORM_COLOR')` y `batch_for_shader(...)` se invocan en cada llamada a `draw_rect`. Con ~200+ rectángulos por frame (background, celdas, bordes, scrollbar, header, viewer), esto genera ~200+ lookups de shader y ~200+ allocations de batch por redibujado.
@@ -67,7 +67,7 @@ Sin embargo, existen **3 bugs críticos** que pueden causar bloqueo de la interf
 > [!CAUTION]
 > El World Swap (Material Preview) NO funciona correctamente en Blender 4.0+ / 5.x. El identificador del motor EEVEE cambió a `BLENDER_EEVEE_NEXT`.
 
-**Archivo**: [utils.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/utils.py)
+**Archivo**: [utils.py](../../spritesheet_frame_selector/utils.py)
 **Líneas**: L374
 
 **Causa**: `WorldSwapContext.__enter__` establece `self.scene.render.engine = 'BLENDER_EEVEE'`. En Blender 4.0+, EEVEE Legacy fue reemplazado por EEVEE Next con el identificador `'BLENDER_EEVEE_NEXT'`. El manifest declara `blender_version_min = "5.0.0"`.
@@ -80,7 +80,7 @@ Sin embargo, existen **3 bugs críticos** que pueden causar bloqueo de la interf
 
 ### P1-1: Timer de playback leakea en toggling rápido
 
-**Archivo**: [visual_selector.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/visual_selector.py)
+**Archivo**: [visual_selector.py](../../spritesheet_frame_selector/visual_selector.py)
 **Líneas**: L718–723, L743
 
 `bpy.app.timers.register()` retorna `None`, no un handle. Por lo tanto, `self.playback_timer` siempre es `None`, y el path de unregister en `toggle_playback()` (L718: `if self.playback_timer:`) es **código muerto**. Al togglear rápidamente play/pause, se pueden registrar múltiples timers concurrentes que compiten por actualizar `playback_index`.
@@ -89,7 +89,7 @@ Sin embargo, existen **3 bugs críticos** que pueden causar bloqueo de la interf
 
 ### P1-2: `validate_export_settings` crea directorios como efecto secundario durante panel draw
 
-**Archivo**: [utils.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/utils.py)
+**Archivo**: [utils.py](../../spritesheet_frame_selector/utils.py)
 **Líneas**: L107-108
 
 `os.makedirs(out_dir, exist_ok=True)` se ejecuta dentro de `validate_export_settings()`, que es llamada por `panels.py` L259 en cada redibujado del panel de exportación. Esto **crea directorios en disco** como efecto secundario de simplemente tener el panel visible.
@@ -98,7 +98,7 @@ Sin embargo, existen **3 bugs críticos** que pueden causar bloqueo de la interf
 
 ### P1-3: WorldSwapContext no limpia World/Image temporales
 
-**Archivo**: [utils.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/utils.py)
+**Archivo**: [utils.py](../../spritesheet_frame_selector/utils.py)
 **Líneas**: L340, L349
 
 `temp_world` y `temp_image` (HDRI) persisten en `bpy.data.worlds` / `bpy.data.images` indefinidamente. No se eliminan en `__exit__()`. Con uso repetido (diferentes HDRIs, diferentes clips), estos datablocks se acumulan en el archivo .blend, incrementando el tamaño del archivo y consumo de memoria.
@@ -107,7 +107,7 @@ Sin embargo, existen **3 bugs críticos** que pueden causar bloqueo de la interf
 
 ### P1-4: Sin protección contra doble invocación del Visual Selector
 
-**Archivo**: [visual_selector.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/visual_selector.py)
+**Archivo**: [visual_selector.py](../../spritesheet_frame_selector/visual_selector.py)
 
 Si el operador se invoca dos veces rápidamente, se registran dos draw handlers, se cargan dos sets de previews, y ambos modals corren simultáneamente. Al cerrar uno, las imágenes compartidas (`check_existing=True`) se eliminan, dejando referencias dangling en el otro modal.
 
@@ -115,7 +115,7 @@ Si el operador se invoca dos veces rápidamente, se registran dos draw handlers,
 
 ### P1-5: `NumpyComposer` — cleanup de imágenes no es resiliente
 
-**Archivo**: [composer_numpy.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/composer_numpy.py)
+**Archivo**: [composer_numpy.py](../../spritesheet_frame_selector/composer_numpy.py)
 
 Si `bpy.data.images.remove(img)` falla para una imagen (e.g., todavía referenciada), el error propaga y todas las imágenes restantes en `loaded_images` se quedan sin limpiar. Falta un `try/except` per-imagen.
 
@@ -123,7 +123,7 @@ Si `bpy.data.images.remove(img)` falla para una imagen (e.g., todavía referenci
 
 ### P1-6: Clips con nombres duplicados sobreescriben metadata JSON
 
-**Archivo**: [exporter.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/exporter.py)
+**Archivo**: [exporter.py](../../spritesheet_frame_selector/exporter.py)
 
 `metadata["clips"]` es un `dict` con el nombre del clip como key. Si dos clips tienen el mismo nombre, el segundo sobreescribe silenciosamente al primero en el JSON de metadata.
 
@@ -131,7 +131,7 @@ Si `bpy.data.images.remove(img)` falla para una imagen (e.g., todavía referenci
 
 ### P1-7: `__enter__` de WorldSwapContext puede dejar escena modificada si falla después del world swap
 
-**Archivo**: [utils.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/utils.py)
+**Archivo**: [utils.py](../../spritesheet_frame_selector/utils.py)
 **Líneas**: L373-383
 
 Si una excepción ocurre en el loop de ocultamiento de luces (L380-383) después de que el world y engine ya fueron cambiados (L373-374), `__exit__` **NO se invoca** (porque `__enter__` no completó). La escena queda con el world temporal y EEVEE como motor activo.
@@ -256,13 +256,13 @@ Solo `render_multi_clip_frames()` es llamado desde `exporter.py`. `render_select
 
 | Archivo | Qué Limpiar | Prioridad |
 |---|---|---|
-| [visual_selector.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/visual_selector.py) | Fix ESC bug, cachear shader, fix timer leak, guard doble invocación, extraer constantes | **P0+P1** |
-| [utils.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/utils.py) | Fix `BLENDER_EEVEE` → detectar EEVEE Next, separar validación de side effects, cleanup WorldSwapContext | **P0+P1** |
-| [composer_numpy.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/composer_numpy.py) | Per-image try/except en cleanup | **P1** |
-| [exporter.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/exporter.py) | Manejar nombres de clips duplicados en JSON | **P1** |
-| [operators.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/operators.py) | Extraer poll compartido, agregar bounds check | **P2** |
-| [panels.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/panels.py) | No llamar validate en draw, extraer frame count formula | **P2** |
-| [properties.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/properties.py) | Validación frame_start/end, renombrar `object` param | **P2** |
+| [visual_selector.py](../../spritesheet_frame_selector/visual_selector.py) | Fix ESC bug, cachear shader, fix timer leak, guard doble invocación, extraer constantes | **P0+P1** |
+| [utils.py](../../spritesheet_frame_selector/utils.py) | Fix `BLENDER_EEVEE` → detectar EEVEE Next, separar validación de side effects, cleanup WorldSwapContext | **P0+P1** |
+| [composer_numpy.py](../../spritesheet_frame_selector/composer_numpy.py) | Per-image try/except en cleanup | **P1** |
+| [exporter.py](../../spritesheet_frame_selector/exporter.py) | Manejar nombres de clips duplicados en JSON | **P1** |
+| [operators.py](../../spritesheet_frame_selector/operators.py) | Extraer poll compartido, agregar bounds check | **P2** |
+| [panels.py](../../spritesheet_frame_selector/panels.py) | No llamar validate en draw, extraer frame count formula | **P2** |
+| [properties.py](../../spritesheet_frame_selector/properties.py) | Validación frame_start/end, renombrar `object` param | **P2** |
 | Todos los `.py` | Reemplazar 33 `print()` por `logging` | **P1** |
 
 ### Archivos del Repositorio

@@ -22,7 +22,7 @@ Para evitar tener que rediseñar la Clip List en el futuro:
 
 ### Componente 1: Capa de Abstracción de Datos (`utils.py`)
 
-#### [NEW] Función de resolución en [utils.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/utils.py)
+#### [NEW] Función de resolución en [utils.py](../../spritesheet_frame_selector/utils.py)
 Añadir una función helper para centralizar el acceso a la colección de clips y su índice activo:
 
 ```python
@@ -39,7 +39,7 @@ def get_clip_context(context):
 
 ### Componente 2: Operadores Core (`operators.py`)
 
-#### [MODIFY] Operadores en [operators.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/operators.py)
+#### [MODIFY] Operadores en [operators.py](../../spritesheet_frame_selector/operators.py)
 * Refactorizar todos los operadores de clips existentes (`add_clip`, `remove_clip`, `duplicate_clip`) para que obtengan la colección y el índice de forma dinámica usando `get_clip_context(context)`.
 * **[NEW]** Crear el operador `SPRITESHEET_OT_move_clip`:
   * **Identificador**: `spritesheet.move_clip`
@@ -53,7 +53,7 @@ def get_clip_context(context):
 
 ### Componente 3: Interfaz de Usuario (`panels.py`)
 
-#### [MODIFY] Panel de Clips en [panels.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/panels.py)
+#### [MODIFY] Panel de Clips en [panels.py](../../spritesheet_frame_selector/panels.py)
 * Actualizar el panel `SPRITESHEET_PT_clips` para incluir los botones de ordenamiento en la columna lateral de la grilla de clips.
 * Utilizar iconos estándar de Blender (`TRIA_UP` y `TRIA_DOWN`) mapeados al nuevo operador de movimiento:
 
@@ -70,7 +70,7 @@ col.operator("spritesheet.move_clip", text="", icon='TRIA_DOWN').direction = 'DO
 
 ### Componente 4: Pipeline de Exportación (`exporter.py`)
 
-#### [MODIFY] Ordenamiento en [exporter.py](file:///Users/amaruc/Documents/Documentos/Personal_Projects/Developer/spritesheet-blender/spritesheet_frame_selector/exporter.py)
+#### [MODIFY] Ordenamiento en [exporter.py](../../spritesheet_frame_selector/exporter.py)
 * Asegurar que `export_multiple_clips` procese y renderice los clips en el orden exacto en que están posicionados en la lista ordenada de clips.
 * Al escribir el archivo de metadatos JSON (`write_metadata_json`), poblar el diccionario de `clips` iterando secuencialmente sobre la lista ordenada de clips, garantizando que el JSON final refleje el orden de exportación deseado de forma idéntica a la UI.
 

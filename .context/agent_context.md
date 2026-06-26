@@ -15,7 +15,7 @@ Ninguna. Esperando instrucciones del usuario para comenzar nuevas features.
 
 ## Proximo Paso Recomendado
 
-Validar el comportamiento del selector visual y la exportacion multi-workspace de forma interactiva en la interfaz grafica de Blender con escenas reales de produccion.
+Ninguno. Esperar a que el usuario defina y apruebe un nuevo plan de desarrollo.
 
 ## Estado
 
@@ -51,4 +51,4 @@ Ninguno detectado.
 
 ## Validaciones Pendientes
 
-- [ ] Validacion manual de flujos de workspace y selector visual por parte del usuario en Blender GUI.
+- [x] Validacion manual de flujos de workspace y selector visual por parte del usuario en Blender GUI.

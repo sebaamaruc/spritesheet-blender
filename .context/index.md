@@ -16,7 +16,7 @@ Leer siempre:
 |---|---|---|---|---|
 | `AGENTS.md` | Al iniciar cualquier sesion para comprender las reglas operativas de IA | lectura_obligatoria | vigente | alta |
 | `.context/agent_context.md` | Al iniciar cualquier sesion para conocer el estado y la tarea activa | activo | vigente | alta |
-| `.context/handoff.md` | Al continuar trabajo pendiente o cambiar de agente | activo | vigente | alta |
+| `.context/handoff.md` | Al continuar trabajo pendiente o cambiar de agente | cerrado | vigente | alta |
 | `.context/decisions.md` | Antes de cambiar reglas, arquitectura o convenciones | activo | vigente | alta |
 | `.context/worklog.jsonl` | Solo para auditoria o reconstruccion historica | append-only | vigente | alta |
 | `.context/manifest.json` | Para auditoria de version y estructura PCS | activo | vigente | alta |

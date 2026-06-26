@@ -5,23 +5,26 @@ import os
 # Add spritesheet_frame_selector to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from unittest.mock import MagicMock
-import types
-sys.modules['bpy'] = MagicMock()
-sys.modules['gpu'] = MagicMock()
-sys.modules['blf'] = MagicMock()
+# Mock bpy/gpu modules before imports if we are not running inside Blender
+if 'bpy' not in sys.modules:
+    from unittest.mock import MagicMock
+    import types
+    sys.modules['bpy'] = MagicMock()
+    sys.modules['gpu'] = MagicMock()
+    sys.modules['blf'] = MagicMock()
 
-# Create dummy modules for packages
-gpu_extras = types.ModuleType('gpu_extras')
-sys.modules['gpu_extras'] = gpu_extras
+    # Create dummy modules for packages
+    gpu_extras = types.ModuleType('gpu_extras')
+    sys.modules['gpu_extras'] = gpu_extras
 
-gpu_extras_batch = types.ModuleType('gpu_extras.batch')
-sys.modules['gpu_extras.batch'] = gpu_extras_batch
-gpu_extras_batch.batch_for_shader = MagicMock()
+    gpu_extras_batch = types.ModuleType('gpu_extras.batch')
+    sys.modules['gpu_extras.batch'] = gpu_extras_batch
+    gpu_extras_batch.batch_for_shader = MagicMock()
 
-gpu_extras_presets = types.ModuleType('gpu_extras.presets')
-sys.modules['gpu_extras.presets'] = gpu_extras_presets
-gpu_extras_presets.draw_texture_2d = MagicMock()
+    gpu_extras_presets = types.ModuleType('gpu_extras.presets')
+    sys.modules['gpu_extras.presets'] = gpu_extras_presets
+    gpu_extras_presets.draw_texture_2d = MagicMock()
+
 
 from spritesheet_frame_selector.composer import ComposerBackend
 
