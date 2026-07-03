@@ -51,3 +51,27 @@ Este archivo contiene decisiones vigentes o históricamente relevantes. No reemp
 - Decision: Adoptar `template_list` con `rows=1` para una visualización de fila única, en lugar de un dropdown dinámico con `EnumProperty`.
 - Consecuencia: Evita parpadeos y bugs de inicialización en los callbacks dinámicos de Blender, logrando un selector compacto alineado con las directrices visuales nativas de Blender.
 - Referencias: `spritesheet_frame_selector/panels.py`
+
+---
+
+### DEC-0004: Documentacion V2 reemplaza el MVP historico como contrato operativo
+
+- Estado: vigente
+- Fecha: 2026-07-03
+- Decisor: humano + agente
+- Contexto: El reinicio V2 requiere documentacion mantenible antes de limpiar el arbol activo o crear scaffold. `docs/specs/mvp.md` mezclaba vision, alcance, arquitectura y decisiones parcialmente contradictorias, especialmente sobre JSON metadata y multi-clip.
+- Decision: Preservar el MVP original en `docs/archive/mvp-original.md`, degradar `docs/specs/mvp.md` a puntero historico y usar como contrato vigente `docs/specs/product_requirements.md`, `docs/specs/mvp_v2.md`, `docs/architecture/addon_architecture.md`, `docs/design/visual_selector_strategy.md` y `docs/specs/validation_plan.md`.
+- Consecuencia: Las fases posteriores deben planificarse contra los documentos V2. JSON simple es obligatorio para atlas multi-clip, no para export individual simple. Multi-clip debe influir el modelo desde el inicio.
+- Referencias: `docs/plans/reinicio-v2-fase-2-documentacion-base.md`, `docs/specs/mvp_v2.md`, `docs/archive/mvp-original.md`
+
+---
+
+### DEC-0005: Arbol activo minimo antes del scaffold V2
+
+- Estado: vigente
+- Fecha: 2026-07-03
+- Decisor: humano + agente
+- Contexto: El usuario indico que es mejor rehacer la mayoria que mantener codigo con malas practicas. La Fase 1 ya preservo el estado V1 por Git y la Fase 2 creo documentacion V2 vigente.
+- Decision: Retirar del arbol activo el addon V1, tests legacy, scratch, outputs, caches y residuos locales. Archivar metas V1 de `docs/source/` en `docs/archive/`.
+- Consecuencia: La Fase 4 debe crear un scaffold V2 limpio desde documentacion y arquitectura vigentes. El codigo V1 no debe copiarse como base estructural.
+- Referencias: `docs/plans/reinicio-v2-fase-3-limpieza-arbol-activo.md`, `archive/generated-addon-v1`, `archive/generated-addon-v1-2026-07-03`
