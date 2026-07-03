@@ -183,4 +183,3 @@ Reglas obligatorias:
 - Si el agente solo implemento cambios, debe dejar el estado como `implementado` o `correcciones requeridas`, no como cerrado.
 - Si el agente valida cambios pero no actualiza PCS, debe dejar el estado como `validado` o `listo para cierre`, no como cerrado.
 - La Fase de Cierre PCS debe actualizar `.context/agent_context.md`, `.context/handoff.md` y `.context/worklog.jsonl` para reflejar el estado final.
-- El dashboard puede visualizar estos estados, pero no debe inventarlos; debe derivarlos de PCS.
