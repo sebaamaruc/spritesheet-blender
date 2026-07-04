@@ -1,6 +1,24 @@
 import unittest
 import tempfile
+import sys
 from types import SimpleNamespace
+
+if "bpy" not in sys.modules:
+    sys.modules["bpy"] = SimpleNamespace(
+        app=SimpleNamespace(background=False),
+        ops=SimpleNamespace(
+            render=SimpleNamespace(
+                opengl=lambda **_kwargs: {"FINISHED"},
+                render=lambda **_kwargs: {"FINISHED"},
+            ),
+        ),
+        types=SimpleNamespace(
+            Context=object,
+            PropertyGroup=object,
+            Object=object,
+            Collection=object,
+        ),
+    )
 
 from spritesheet_frame_selector.core.cache import build_preview_cache_key, clear_preview_state
 from spritesheet_frame_selector.core.frame_sync import sync_clip_frames
@@ -12,6 +30,7 @@ from spritesheet_frame_selector.core.workspace_state import (
     default_collection_count_error,
     missing_effective_collection_names,
 )
+from spritesheet_frame_selector.preview import generator
 
 
 class FakeCollection(list):
@@ -208,6 +227,108 @@ class WorkspacePreviewCacheTests(unittest.TestCase):
         self.assertFalse(clip.frames[0].selected)
         self.assertEqual(clip.frames[0].preview_path, "")
         self.assertTrue(clip.cache_dirty)
+
+
+class PreviewViewportContextTests(unittest.TestCase):
+    def test_find_view3d_context_prefers_active_area(self):
+        view_area = fake_view3d_area()
+        screen = SimpleNamespace(areas=[fake_area("IMAGE_EDITOR"), view_area])
+        context = SimpleNamespace(area=view_area, window=SimpleNamespace(screen=screen))
+
+        result = generator._find_view3d_render_context(context)
+
+        self.assertIsNotNone(result)
+        self.assertIs(result.area, view_area)
+        self.assertEqual(result.region.type, "WINDOW")
+        self.assertEqual(result.space.type, "VIEW_3D")
+
+    def test_find_view3d_context_falls_back_to_screen_area(self):
+        view_area = fake_view3d_area()
+        screen = SimpleNamespace(areas=[fake_area("IMAGE_EDITOR"), view_area])
+        context = SimpleNamespace(area=fake_area("PROPERTIES"), window=SimpleNamespace(screen=screen))
+
+        result = generator._find_view3d_render_context(context)
+
+        self.assertIsNotNone(result)
+        self.assertIs(result.area, view_area)
+
+    def test_find_view3d_context_returns_none_without_window_region(self):
+        view_area = fake_view3d_area(regions=[SimpleNamespace(type="UI")])
+        context = SimpleNamespace(area=view_area, window=SimpleNamespace(screen=SimpleNamespace(areas=[view_area])))
+
+        self.assertIsNone(generator._find_view3d_render_context(context))
+
+    def test_viewport_thumbnail_restores_shading_and_overlay(self):
+        view_area = fake_view3d_area()
+        context = FakeOverrideContext()
+        viewport_context = generator.ViewportRenderContext(
+            window=SimpleNamespace(),
+            screen=SimpleNamespace(),
+            area=view_area,
+            region=view_area.regions[0],
+            space=view_area.spaces.active,
+        )
+        original_opengl = generator.bpy.ops.render.opengl
+        observed = {}
+        try:
+            def fake_opengl(**kwargs):
+                observed["shading_type"] = view_area.spaces.active.shading.type
+                observed["show_overlays"] = view_area.spaces.active.overlay.show_overlays
+                observed["kwargs"] = kwargs
+                return {"FINISHED"}
+
+            generator.bpy.ops.render.opengl = fake_opengl
+
+            result = generator._write_viewport_thumbnail(context, viewport_context, "MATERIAL")
+        finally:
+            generator.bpy.ops.render.opengl = original_opengl
+
+        self.assertTrue(result)
+        self.assertEqual(observed["shading_type"], "MATERIAL")
+        self.assertFalse(observed["show_overlays"])
+        self.assertTrue(observed["kwargs"]["write_still"])
+        self.assertTrue(observed["kwargs"]["view_context"])
+        self.assertEqual(view_area.spaces.active.shading.type, "SOLID")
+        self.assertTrue(view_area.spaces.active.overlay.show_overlays)
+        self.assertTrue(context.override_used)
+
+
+class FakeOverrideContext:
+    def __init__(self):
+        self.override_used = False
+
+    def temp_override(self, **_kwargs):
+        self.override_used = True
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _exc_type, _exc, _traceback):
+        return False
+
+
+class FakeSpaces(list):
+    @property
+    def active(self):
+        return self[0] if self else None
+
+
+def fake_area(area_type):
+    return SimpleNamespace(type=area_type, regions=[], spaces=FakeSpaces())
+
+
+def fake_view3d_area(regions=None):
+    space = SimpleNamespace(
+        type="VIEW_3D",
+        shading=SimpleNamespace(type="SOLID"),
+        overlay=SimpleNamespace(show_overlays=True),
+    )
+    return SimpleNamespace(
+        type="VIEW_3D",
+        regions=regions if regions is not None else [SimpleNamespace(type="WINDOW")],
+        spaces=FakeSpaces([space]),
+    )
 
 
 if __name__ == "__main__":

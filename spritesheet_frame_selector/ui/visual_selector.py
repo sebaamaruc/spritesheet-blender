@@ -17,9 +17,9 @@ from ..playback.controller import stop_playback
 SELECTED_COLOR = (0.05, 0.55, 1.0, 1.0)
 CURRENT_COLOR = (1.0, 0.68, 0.05, 1.0)
 PANEL_COLOR = (0.06, 0.06, 0.06, 1.0)
-VIEWER_COLOR = (0.0, 0.0, 0.0, 1.0)
-FRAME_COLOR = (0.0, 0.0, 0.0, 1.0)
-FRAME_IMAGE_BG_COLOR = (0.005, 0.005, 0.005, 1.0)
+PREVIEW_CHECKER_DARK = (0.24, 0.27, 0.36, 1.0)
+PREVIEW_CHECKER_LIGHT = (0.31, 0.34, 0.44, 1.0)
+FRAME_BORDER_BG_COLOR = (0.015, 0.017, 0.022, 1.0)
 TEXT_COLOR = (0.92, 0.92, 0.92, 1.0)
 MUTED_COLOR = (0.45, 0.45, 0.45, 1.0)
 SURFACE_SAFE_LEFT = 78
@@ -131,13 +131,13 @@ class VisualSelectorSession:
         viewer_y = panel.y + panel.height - header_h - viewer_h - margin
         viewer = Rect(panel.x + margin, viewer_y, viewer_w, viewer_h)
         controls = Rect(viewer.x + viewer.width + margin, viewer.y, controls_w, viewer_h)
-        _draw_rect(gpu, batch_for_shader, viewer, VIEWER_COLOR)
+        _draw_checkerboard(gpu, batch_for_shader, viewer, 18)
         _draw_rect(gpu, batch_for_shader, controls, (0.03, 0.03, 0.03, 1.0))
 
         current_number = _current_display_frame(workspace, clip)
         current_frame = _frame_by_number(clip, current_number) if current_number is not None else None
         if current_frame is not None:
-            _draw_rect(gpu, batch_for_shader, viewer, VIEWER_COLOR)
+            _draw_checkerboard(gpu, batch_for_shader, viewer, 18)
             _draw_preview_image(gpu, batch_for_shader, self, current_frame.preview_path, viewer)
             _draw_text(blf, viewer.x + 12, viewer.y + 12, f"Frame {current_frame.frame_number}", 18)
         else:
@@ -165,8 +165,8 @@ class VisualSelectorSession:
         for index, frame in enumerate(visible_frames):
             rect = Rect(x, y, cell_size, cell_size)
             self.frame_cells.append(FrameCell(index, rect))
-            _draw_rect(gpu, batch_for_shader, rect, FRAME_COLOR)
-            _draw_rect(gpu, batch_for_shader, _inset_rect(rect, 2), FRAME_IMAGE_BG_COLOR)
+            _draw_rect(gpu, batch_for_shader, rect, FRAME_BORDER_BG_COLOR)
+            _draw_checkerboard(gpu, batch_for_shader, _inset_rect(rect, 2), 8)
             _draw_preview_image(gpu, batch_for_shader, self, frame.preview_path, rect)
             _draw_text(blf, rect.x + 6, rect.y + 6, str(frame.frame_number), 11)
             if frame.selected:
@@ -463,6 +463,24 @@ def _draw_rect(gpu: Any, batch_for_shader: Any, rect: Rect, color: tuple[float, 
     shader.bind()
     shader.uniform_float("color", color)
     batch.draw(shader)
+
+
+def _draw_checkerboard(gpu: Any, batch_for_shader: Any, rect: Rect, cell_size: int) -> None:
+    cell = max(4, int(cell_size))
+    columns = int(rect.width // cell) + 1
+    rows = int(rect.height // cell) + 1
+    for row in range(rows):
+        y = rect.y + row * cell
+        height = min(cell, rect.y + rect.height - y)
+        if height <= 0:
+            continue
+        for column in range(columns):
+            x = rect.x + column * cell
+            width = min(cell, rect.x + rect.width - x)
+            if width <= 0:
+                continue
+            color = PREVIEW_CHECKER_LIGHT if (row + column) % 2 == 0 else PREVIEW_CHECKER_DARK
+            _draw_rect(gpu, batch_for_shader, Rect(x, y, width, height), color)
 
 
 def _selector_panel_rect(region_width: float, region_height: float, area: Any) -> Rect:
