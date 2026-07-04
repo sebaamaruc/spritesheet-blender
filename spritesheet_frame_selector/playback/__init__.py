@@ -1,1 +1,1 @@
-"""Playback package placeholder for future V2 slices."""
+"""Playback preview runtime package."""

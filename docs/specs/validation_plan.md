@@ -16,6 +16,11 @@ Este plan define las validaciones esperadas para reconstruir el addon V2 por fas
 - Validacion de rangos invalidos.
 - Calculo de rows, columnas y dimensiones estimadas.
 - Sanitizacion y unicidad de nombres/cache keys.
+- Resolucion de workspace activo y clip activo con indices fuera de rango.
+- Generacion de nombres unicos para workspaces y clips.
+- Duplicacion logica de workspace sin copiar cache como valido.
+- Resolucion logica de camera efectiva: override de clip o default de workspace.
+- Resolucion logica de collections efectivas: override de clip o defaults de workspace.
 - Validacion de settings de export sin efectos secundarios.
 - Generacion de metadata JSON multi-clip.
 - Manejo de clips con nombres duplicados.
@@ -28,8 +33,12 @@ Este plan define las validaciones esperadas para reconstruir el addon V2 por fas
 - `register()` y `unregister()`.
 - Activar, desactivar y reactivar addon.
 - Registro de `PropertyGroup`, `CollectionProperty` y `PointerProperty`.
-- Persistencia de propiedades en escena.
-- Creacion de clip y frames.
+- Persistencia de `Scene.spritesheet_state`.
+- Creacion de workspace, default camera, default collections, clip y frames.
+- Persistencia save/reopen de workspaces, clips, settings, overrides y seleccion.
+- Cambio de escena sin mezclar workspaces entre escenas.
+- Validacion de PointerProperty de camara y collections faltantes.
+- Aplicar/restaurar visibilidad de collections en preview/render sin dejar estado modificado.
 - Guardar/reabrir `.blend` de prueba.
 - Export simple con escena minima si Blender puede renderizar en CI/local.
 
@@ -48,27 +57,50 @@ Este plan define las validaciones esperadas para reconstruir el addon V2 por fas
 
 1. Abrir archivo nuevo.
 2. Activar addon.
-3. Crear clip sin configurar nada mas.
-4. Confirmar warnings claros para camara, frames o previews faltantes.
-5. Guardar archivo.
-6. Reabrir y confirmar estado persistente.
+3. Crear workspace.
+4. Crear clip sin configurar nada mas.
+5. Confirmar warnings claros para workspace sin camara default, collections default, frames o previews faltantes.
+6. Guardar archivo.
+7. Reabrir y confirmar estado persistente.
 
 ### Cambio De Escena
 
 1. Crear dos escenas.
-2. Crear clips en una escena.
+2. Crear workspaces y clips en una escena.
 3. Cambiar a la segunda escena.
 4. Confirmar que el panel no asume datos de la escena anterior.
 5. Volver a la primera escena.
-6. Confirmar que los clips siguen disponibles.
+6. Confirmar que workspaces, clips y settings siguen disponibles.
 
 ### Camara Faltante O Borrada
 
-1. Crear clip con camara activa.
-2. Borrar la camara.
-3. Intentar preview y export.
-4. Confirmar error o warning claro sin traceback.
-5. Asignar nueva camara y repetir.
+1. Crear workspace con default camera.
+2. Crear clip sin override y generar preview.
+3. Borrar la camara.
+4. Intentar preview y export.
+5. Confirmar error o warning claro sin traceback.
+6. Asignar nueva default camera y repetir.
+7. Activar override de camera en un clip, borrar esa camara y confirmar warning especifico del clip.
+
+### Collections Faltantes O Borradas
+
+1. Crear workspace con default collections.
+2. Crear clip que hereda collections default.
+3. Crear otro clip con override de collections.
+4. Borrar una collection referenciada.
+5. Intentar preview y export.
+6. Confirmar warning claro usando nombre ultimo conocido.
+7. Confirmar que no hay traceback.
+
+### Visibilidad Por Collections
+
+1. Crear collections anidadas.
+2. Configurar workspace default collection como collection hija.
+3. Generar preview.
+4. Confirmar que ancestros necesarios permanecen visibles durante la operacion.
+5. Confirmar que collections no incluidas quedan excluidas durante render/preview.
+6. Confirmar que la collection de la camara efectiva queda visible.
+7. Confirmar que al terminar se restaura el estado original del view layer.
 
 ### Coleccion U Objeto Faltante
 
@@ -79,13 +111,17 @@ Este plan define las validaciones esperadas para reconstruir el addon V2 por fas
 
 ### Preview Cache
 
-1. Crear clip 1-20 con preview 64.
-2. Generar previews.
-3. Confirmar contador de previews generados.
-4. Reabrir selector visual.
-5. Confirmar que no regenera si no se pidio refresh.
-6. Usar Refresh Preview.
-7. Usar Clear Preview Cache.
+1. Crear workspace con camera y collections default.
+2. Crear clip 1-20 con preview 64.
+3. Generar previews.
+4. Confirmar contador de previews generados.
+5. Confirmar que cache key/ruta no dependen del nombre visible del clip.
+6. Cambiar override de camera o collections y confirmar que el cache queda stale o cambia key segun la politica implementada.
+7. Reabrir selector visual.
+8. Confirmar que no regenera si no se pidio refresh.
+9. Usar Refresh Preview.
+10. Usar Clear Preview Cache.
+11. Confirmar que Clear Preview Cache conserva frames y seleccion.
 
 ### Selector Visual
 
@@ -109,39 +145,45 @@ Este plan define las validaciones esperadas para reconstruir el addon V2 por fas
 
 ### Export PNG Individual
 
-1. Seleccionar al menos un frame.
-2. Configurar frame width, frame height, columns, padding, margin y transparencia.
-3. Exportar spritesheet individual.
-4. Confirmar PNG creado.
-5. Confirmar alpha.
-6. Confirmar dimensiones esperadas.
-7. Confirmar que el frame actual de Blender se restaura.
+1. Crear workspace con camera, collections default y export settings.
+2. Seleccionar al menos un frame en un clip incluido.
+3. Configurar frame width, frame height, columns, padding, margin y transparencia.
+4. Exportar spritesheet individual.
+5. Confirmar PNG creado.
+6. Confirmar alpha.
+7. Confirmar dimensiones esperadas.
+8. Confirmar que el frame actual de Blender se restaura.
+9. Confirmar que se uso la camara efectiva y collections efectivas.
 
 ### Atlas Multi-Clip Con JSON
 
-1. Crear clips `idle` y `run`.
-2. Generar previews y seleccionar frames en ambos.
-3. Exportar atlas multi-clip.
-4. Confirmar PNG creado.
-5. Confirmar JSON creado.
-6. Confirmar que JSON incluye `sheet`, `frameWidth`, `frameHeight`, `columns` y clips con `start`, `end`, `count`, `fps`.
-7. Repetir con nombres duplicados y confirmar metadata sin sobrescritura silenciosa.
+1. Crear workspace.
+2. Crear clips `idle` y `run`.
+3. Generar previews y seleccionar frames en ambos.
+4. Marcar ambos como incluidos en export.
+5. Cambiar orden manual de clips.
+6. Exportar atlas multi-clip.
+7. Confirmar PNG creado.
+8. Confirmar JSON creado.
+9. Confirmar que JSON incluye `sheet`, `frameWidth`, `frameHeight`, `columns` y clips ordenados con identificador estable, nombre visible, `start`, `end`, `count`, `fps`.
+10. Repetir con nombres duplicados y confirmar metadata sin sobrescritura silenciosa.
+11. Excluir un clip y confirmar que no aparece en atlas ni JSON.
 
 ### Persistencia `.blend`
 
-1. Crear clips, seleccionar frames y configurar export.
+1. Crear workspaces, defaults, clips, overrides, seleccionar frames y configurar export.
 2. Guardar `.blend`.
 3. Cerrar Blender.
 4. Reabrir archivo.
-5. Confirmar clips, seleccion, settings y warnings.
+5. Confirmar workspaces, clips, seleccion, settings, overrides y warnings.
 6. Confirmar que caches derivados no son requisito para recuperar la seleccion.
 
 ## Validaciones De No Regresion Por Fase
 
 - Fase 4 scaffold: import, register/unregister, panel minimo.
-- Fase 5a data model: persistencia, indices, undo/redo basico.
-- Fase 5b clips: add, remove, duplicate y cambio de clip activo.
-- Fase 5c preview cache: generate, refresh, clear y cache stale.
+- Fase 5a workspace-root data model: persistencia de workspaces, clips, defaults, overrides, export settings, indices y undo/redo basico.
+- Fase 5b workspace/clip management: add, remove, duplicate, select, reorder workspaces/clips y cambio de activos.
+- Fase 5c preview cache workspace-aware: generate, refresh, clear, cache stale, camera/collections efectivas y preservacion de seleccion.
 - Fase 5d selector: apertura, cierre, seleccion y cleanup.
 - Fase 5e playback: timers, FPS y cierre durante playback.
 - Fase 5f render: render solo seleccionados y restauracion de escena.

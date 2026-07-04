@@ -1,17 +1,101 @@
-"""Centralized Blender registration for the V2 scaffold."""
+"""Centralized Blender registration for SpriteSheet Frame Selector V2."""
 
 from __future__ import annotations
 
 import bpy
 
+from .operators.clips import (
+    SPRITESHEET_OT_clip_add,
+    SPRITESHEET_OT_clip_duplicate,
+    SPRITESHEET_OT_clip_included_collection_add,
+    SPRITESHEET_OT_clip_included_collection_remove,
+    SPRITESHEET_OT_clip_move,
+    SPRITESHEET_OT_clip_remove,
+    SPRITESHEET_OT_clip_select,
+)
+from .operators.export import SPRITESHEET_OT_export_spritesheet
+from .operators.preview import (
+    SPRITESHEET_OT_preview_clear_cache,
+    SPRITESHEET_OT_preview_generate,
+    SPRITESHEET_OT_preview_size_preset,
+)
+from .operators.playback import (
+    SPRITESHEET_OT_playback_pause,
+    SPRITESHEET_OT_playback_play,
+    SPRITESHEET_OT_playback_stop,
+)
+from .operators.visual_selector import (
+    SPRITESHEET_OT_frame_deselect_all,
+    SPRITESHEET_OT_frame_invert_selection,
+    SPRITESHEET_OT_frame_select_all,
+    SPRITESHEET_OT_frame_select_every_n,
+    SPRITESHEET_OT_frame_toggle_selection,
+    SPRITESHEET_OT_visual_selector_open,
+    SPRITESHEET_OT_visual_selector_set_mode,
+)
+from .operators.workspaces import (
+    SPRITESHEET_OT_workspace_add,
+    SPRITESHEET_OT_workspace_default_collection_add,
+    SPRITESHEET_OT_workspace_default_collection_remove,
+    SPRITESHEET_OT_workspace_duplicate,
+    SPRITESHEET_OT_workspace_move,
+    SPRITESHEET_OT_workspace_remove,
+    SPRITESHEET_OT_workspace_select,
+)
 from .preferences import SpriteSheetAddonPreferences
-from .properties import SpriteSheetSceneState
-from .ui.panels import SPRITESHEET_PT_main
+from .playback.controller import cleanup_playback_resources
+from .properties import (
+    SpriteSheetClip,
+    SpriteSheetExportSettings,
+    SpriteSheetFrameItem,
+    SpriteSheetIncludedCollection,
+    SpriteSheetSceneState,
+    SpriteSheetWorkspace,
+)
+from .ui.lists import SPRITESHEET_UL_clips, SPRITESHEET_UL_workspaces
+from .ui.panels import SPRITESHEET_MT_preview_size, SPRITESHEET_PT_main
+from .ui.visual_selector import cleanup_visual_selector_resources
 
 
 CLASSES = (
     SpriteSheetAddonPreferences,
+    SpriteSheetIncludedCollection,
+    SpriteSheetFrameItem,
+    SpriteSheetExportSettings,
+    SpriteSheetClip,
+    SpriteSheetWorkspace,
     SpriteSheetSceneState,
+    SPRITESHEET_UL_workspaces,
+    SPRITESHEET_UL_clips,
+    SPRITESHEET_OT_workspace_add,
+    SPRITESHEET_OT_workspace_remove,
+    SPRITESHEET_OT_workspace_duplicate,
+    SPRITESHEET_OT_workspace_select,
+    SPRITESHEET_OT_workspace_move,
+    SPRITESHEET_OT_workspace_default_collection_add,
+    SPRITESHEET_OT_workspace_default_collection_remove,
+    SPRITESHEET_OT_clip_add,
+    SPRITESHEET_OT_clip_remove,
+    SPRITESHEET_OT_clip_duplicate,
+    SPRITESHEET_OT_clip_select,
+    SPRITESHEET_OT_clip_move,
+    SPRITESHEET_OT_clip_included_collection_add,
+    SPRITESHEET_OT_clip_included_collection_remove,
+    SPRITESHEET_OT_export_spritesheet,
+    SPRITESHEET_OT_preview_generate,
+    SPRITESHEET_OT_preview_clear_cache,
+    SPRITESHEET_OT_preview_size_preset,
+    SPRITESHEET_OT_visual_selector_open,
+    SPRITESHEET_OT_visual_selector_set_mode,
+    SPRITESHEET_OT_frame_select_all,
+    SPRITESHEET_OT_frame_deselect_all,
+    SPRITESHEET_OT_frame_invert_selection,
+    SPRITESHEET_OT_frame_select_every_n,
+    SPRITESHEET_OT_frame_toggle_selection,
+    SPRITESHEET_OT_playback_play,
+    SPRITESHEET_OT_playback_pause,
+    SPRITESHEET_OT_playback_stop,
+    SPRITESHEET_MT_preview_size,
     SPRITESHEET_PT_main,
 )
 
@@ -37,14 +121,18 @@ def register() -> None:
         try:
             bpy.utils.register_class(cls)
         except ValueError:
-            pass
-        _registered_classes.append(cls)
+            if cls not in _registered_classes:
+                _registered_classes.append(cls)
+        else:
+            _registered_classes.append(cls)
 
     _register_scene_properties()
 
 
 def unregister() -> None:
     """Unregister scene properties and classes in reverse order."""
+    cleanup_playback_resources()
+    cleanup_visual_selector_resources()
     _unregister_scene_properties()
 
     while _registered_classes:

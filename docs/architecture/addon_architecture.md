@@ -30,17 +30,20 @@ spritesheet_frame_selector/
     lists.py
     visual_selector.py
   operators/
+    workspaces.py
     clips.py
     preview.py
     selection.py
     playback.py
     export.py
   core/
+    workspace_state.py
     clip_model.py
     frame_math.py
     validation.py
     paths.py
     cache.py
+    visibility.py
   preview/
     generator.py
     loader.py
@@ -73,6 +76,9 @@ spritesheet_frame_selector/
 - No ejecuta render, export ni IO pesado.
 - Valida rangos basicos con callbacks simples solo si no producen efectos secundarios.
 - Expone datos suficientes para persistencia en `.blend`.
+- Expone una unica propiedad raiz sobre `bpy.types.Scene`: `spritesheet_state`.
+- No mantiene propiedades legacy directas como `Scene.spritesheet_clips` o `Scene.spritesheet_export` en V2.
+- Workspace es la raiz de dominio: los clips y export settings viven bajo el workspace activo.
 
 ### Core
 
@@ -80,6 +86,8 @@ spritesheet_frame_selector/
 - No depende de UI.
 - Debe ser testeable fuera de Blender cuando sea posible.
 - Puede recibir objetos Blender explicitos si no hay alternativa, pero no debe depender de estado implicito global.
+- Contiene resolucion explicita de contexto: state activo, workspace activo, clip activo, camara efectiva, collections efectivas y settings efectivos.
+- La logica que aplica visibilidad de collections vive en un modulo dedicado y siempre conserva/restaura estado.
 
 ### UI
 
@@ -87,6 +95,8 @@ spritesheet_frame_selector/
 - No crea directorios, no renderiza, no compone imagenes y no muta estado complejo durante `draw`.
 - Llama operadores para acciones.
 - Muestra warnings calculados por core/validation.
+- Muestra workspace activo, lista de workspaces y lista de clips del workspace activo.
+- Permite configurar defaults del workspace y overrides del clip sin mezclar ambos niveles.
 
 ### Operadores
 
@@ -95,6 +105,9 @@ spritesheet_frame_selector/
 - No debe asumir escena, clip activo, camara o action existentes.
 - Debe reportar errores con `self.report()` cuando la accion no puede completarse.
 - Operadores largos deben conservar/restaurar frame y settings temporales.
+- Los operadores de clips actuan siempre sobre el workspace activo.
+- Los operadores de workspace deben manejar add, remove, duplicate y select sin depender de escena especial.
+- Duplicar workspace genera ids nuevos, conserva configuracion y seleccion, pero no conserva cache como valido.
 
 ### Preview
 
@@ -103,6 +116,8 @@ spritesheet_frame_selector/
 - Expone refresh y clear cache.
 - Mantiene cache por clip con identificadores estables, no solo por nombre visible.
 - No intenta detectar automaticamente todos los cambios de escena.
+- Genera previews desde la camara efectiva y collections efectivas del workspace + clip.
+- El cache key incluye datos efectivos que afectan thumbnails, incluyendo workspace/clip ids, rango, preview size, camara efectiva y collections efectivas.
 
 ### Visual Selector
 
@@ -125,6 +140,8 @@ spritesheet_frame_selector/
 - Conserva/restaura frame actual, motor, resolucion, transparencia y settings temporales.
 - Maneja camara faltante o invalida.
 - No deja datablocks temporales, worlds, images o handlers sin limpiar.
+- Aplica visibilidad efectiva por collections antes de renderizar y la restaura siempre.
+- En workspace-root no debe usar `scene.camera` como fallback silencioso si faltan camera default y override.
 
 ### Composer
 
@@ -140,6 +157,9 @@ spritesheet_frame_selector/
 - No debe contener logica de UI.
 - Debe tratar nombres duplicados de clips sin sobrescribir metadata.
 - Debe crear directorios solo durante acciones explicitas de export, no durante draw o validacion pasiva.
+- Exporta clips incluidos del workspace activo en orden manual.
+- Usa settings del workspace activo.
+- El JSON multi-clip debe representarse como lista ordenada o usar ids estables; no debe depender de nombres visibles como keys unicas.
 
 ### Cache Y Paths
 
@@ -148,23 +168,50 @@ spritesheet_frame_selector/
 - Maneja archivos `.blend` no guardados usando ubicacion temporal controlada.
 - Permite limpieza manual.
 - Evita colisiones por nombres duplicados.
+- Organiza caches por workspace id, clip id y cache key.
+- Clear cache limpia rutas y archivos derivados, pero conserva frames y seleccion persistente.
+
+### Visibility
+
+- Resuelve collections efectivas desde workspace + clip.
+- Aplica whitelist de collections al view layer de forma reversible.
+- Incluye ancestros necesarios para que collections anidadas sean visibles.
+- Asegura que la coleccion de la camara efectiva no quede excluida durante preview/render.
+- Detecta PointerProperty de collections borradas usando nombre ultimo conocido.
+- No deja el view layer modificado si falla una operacion.
 
 ## Modelo De Datos Conceptual
 
 ```text
 Scene
-  spritesheet_clips: Collection[SpriteSheetClip]
-  spritesheet_active_clip_index: int
-  spritesheet_export_settings: SpriteSheetExportSettings
+  spritesheet_state: SpriteSheetSceneState
+
+SpriteSheetSceneState
+  schema_version: int
+  workspaces: Collection[SpriteSheetWorkspace]
+  active_workspace_index: int
+
+SpriteSheetWorkspace
+  id: string
+  name: string
+  default_camera: PointerProperty(Object) o referencia validable
+  default_collections: Collection[SpriteSheetIncludedCollection]
+  clips: Collection[SpriteSheetClip]
+  active_clip_index: int
+  export_settings: PointerProperty(SpriteSheetExportSettings)
 
 SpriteSheetClip
   id: string
   name: string
+  include_in_export: bool
   frame_start: int
   frame_end: int
   frame_step: int
   fps: int
+  use_camera_override: bool
   camera: PointerProperty(Object) o referencia validable
+  use_collection_override: bool
+  included_collections: Collection[SpriteSheetIncludedCollection]
   preview_size: int
   frames: Collection[SpriteSheetFrameItem]
   active_frame_index: int
@@ -189,12 +236,17 @@ SpriteSheetExportSettings
   sheet_name: string
   export_png_sequence: bool
   png_sequence_folder: string
+
+SpriteSheetIncludedCollection
+  collection: PointerProperty(Collection)
+  collection_name: string
 ```
 
 ## Reglas Blender API
 
 - `register()` no debe depender de escena activa.
 - `unregister()` debe limpiar Scene properties con `delattr` defensivo.
+- `register()` debe registrar PropertyGroups en orden dependiente: included collection, frame item, export settings, clip, workspace, scene state, UI/operators.
 - Handlers, timers, draw handlers y previews deben tener cleanup explicito.
 - Los operadores deben implementar `poll` robusto o validacion temprana.
 - Los `draw` de panels no deben producir efectos secundarios de filesystem.
@@ -208,6 +260,7 @@ SpriteSheetExportSettings
 - Modal que no cierra por orden incorrecto de eventos.
 - Draw handlers o timers filtrados.
 - Caches basados solo en `clip.name`.
+- Modelo dual legacy/workspace dentro de V2.
 - Validaciones que crean carpetas durante `draw`.
 - Uso fragil de `bpy.context` dentro de utilidades.
 - Metadatos JSON que sobrescriben clips con nombres duplicados.

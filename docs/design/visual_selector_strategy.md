@@ -12,14 +12,15 @@ La primera version debe ser robusta antes que sofisticada. Una grilla simple, cl
 
 ## Experiencia Objetivo
 
-1. El usuario genera previews.
-2. Abre un selector mas amplio que el sidebar.
-3. Ve una grilla de thumbnails con numeros de frame.
-4. Selecciona o deselecciona frames.
-5. Presiona Play y ve solo los frames seleccionados.
-6. Ajusta la seleccion.
-7. Cierra el selector sin perder estado.
-8. Exporta desde el sidebar.
+1. El usuario elige un workspace y un clip dentro de ese workspace.
+2. Genera previews usando la camara efectiva y collections efectivas del workspace + clip.
+3. Abre un selector mas amplio que el sidebar.
+4. Ve una grilla de thumbnails con numeros de frame.
+5. Selecciona o deselecciona frames.
+6. Presiona Play y ve solo los frames seleccionados.
+7. Ajusta la seleccion.
+8. Cierra el selector sin perder estado.
+9. Exporta desde el sidebar usando la inclusion y orden del workspace activo.
 
 ## Selector Minimo Aceptable
 
@@ -35,6 +36,9 @@ La primera version debe ser robusta antes que sofisticada. Una grilla simple, cl
 - Select Every N Frames.
 - Contador visible de seleccion.
 - Mensaje claro si faltan previews.
+- Nombre del workspace activo visible o disponible en el contexto del selector.
+- Nombre del clip activo visible.
+- Warning claro si el clip activo no tiene camara efectiva o collections efectivas.
 - Cierre confiable con ESC, boton de cerrar y RIGHTMOUSE si aplica.
 
 ## Playback Preview
@@ -90,6 +94,7 @@ No es aceptable como resultado final del MVP un selector solo textual sin ruta v
 ## Reglas Tecnicas Del Selector
 
 - El selector consume datos de clip y preview; no calcula ni renderiza previews.
+- El selector recibe workspace y clip activos de forma explicita. No debe buscar una lista global de clips en `Scene`.
 - La seleccion se escribe en el modelo persistente.
 - La carga de imagenes debe tolerar archivos faltantes.
 - El modal debe prevenir doble invocacion.
@@ -97,6 +102,7 @@ No es aceptable como resultado final del MVP un selector solo textual sin ruta v
 - Cambios de estado GPU deben protegerse con `try/finally`.
 - El layout visible puede cachearse y recalcularse solo cuando cambien tamaño, scroll, zoom o cantidad de frames.
 - El selector no debe crear directorios ni modificar settings de render.
+- Cambiar de workspace o clip mientras el selector esta abierto debe cerrar o invalidar el selector de forma controlada, sin escribir seleccion en el clip equivocado.
 
 ## Estados Visuales
 
@@ -106,6 +112,7 @@ No es aceptable como resultado final del MVP un selector solo textual sin ruta v
 - Preview faltante: placeholder tecnico simple.
 - Cache posiblemente desactualizado: warning visible, sin bloqueo.
 - Clip activo: nombre visible.
+- Workspace activo: nombre visible o contexto claro.
 - Playback activo: indicador simple y frame actual resaltado.
 
 ## Criterio De Termino Del Selector MVP
