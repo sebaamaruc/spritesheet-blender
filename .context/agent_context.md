@@ -44,6 +44,7 @@ Revisar `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`. Si el usuari
 - Fase 5e1 selector/playback UX: validada; quedan ajustes menores de UI no bloqueantes para pulido futuro
 - Fase 5f render final workspace-aware: funcionalidad validada por usuario; flujo publico separado reemplazado por opcion integrada en 5g
 - Fase 5g export spritesheet y JSON: validada por usuario, incluidas correcciones UI/naming/atajos
+- Subplanes implementados de Fase 5: archivados en `docs/archive/`
 - Fase 6 validacion final y distribucion: plan propuesto
 - Ejecucion de reinicio V2: pendiente de planes especificos por fase
 
@@ -55,22 +56,25 @@ Revisar `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`. Si el usuari
 - `.context/handoff.md`
 - `.context/decisions.md`
 - `docs/plans/reinicio-v2-master-plan.md`
-- `docs/plans/reinicio-v2-fase-1-preservacion.md`
-- `docs/plans/reinicio-v2-fase-2-documentacion-base.md`
-- `docs/plans/reinicio-v2-fase-3-limpieza-arbol-activo.md`
-- `docs/plans/reinicio-v2-fase-4-scaffold-addon-v2.md`
-- `docs/plans/reinicio-v2-fase-5-vertical-slices.md`
-- `docs/plans/reinicio-v2-fase-5-workspace-root-vertical-slices.md`
-- `docs/plans/reinicio-v2-fase-5a-data-model-persistencia.md`
-- `docs/plans/reinicio-v2-fase-5a-workspace-data-model-persistencia.md`
-- `docs/plans/reinicio-v2-fase-5b-workspace-clip-management.md`
-- `docs/plans/reinicio-v2-fase-5c-workspace-preview-cache.md`
-- `docs/plans/reinicio-v2-fase-5d-visual-selector-minimo.md`
-- `docs/plans/reinicio-v2-fase-5e-playback-preview.md`
-- `docs/plans/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md`
-- `docs/plans/reinicio-v2-fase-5e1-selector-playback-ux.md`
-- `docs/plans/reinicio-v2-fase-5f-render-final-workspace-aware.md`
-- `docs/plans/reinicio-v2-fase-5g-export-spritesheet-json.md`
+- `docs/archive/reinicio-v2-fase-1-preservacion.md`
+- `docs/archive/reinicio-v2-fase-2-documentacion-base.md`
+- `docs/archive/reinicio-v2-fase-3-limpieza-arbol-activo.md`
+- `docs/archive/reinicio-v2-fase-4-scaffold-addon-v2.md`
+- `docs/archive/reinicio-v2-fase-5-vertical-slices.md`
+- `docs/archive/reinicio-v2-fase-5-workspace-root-vertical-slices.md`
+- `docs/archive/reinicio-v2-fase-5a-data-model-persistencia.md`
+- `docs/archive/reinicio-v2-fase-5a-workspace-data-model-persistencia.md`
+- `docs/archive/reinicio-v2-fase-5b-gestion-clips.md`
+- `docs/archive/reinicio-v2-fase-5b-workspace-clip-management.md`
+- `docs/archive/reinicio-v2-fase-5c-preview-cache.md`
+- `docs/archive/reinicio-v2-fase-5c-workspace-preview-cache.md`
+- `docs/archive/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md`
+- `docs/archive/reinicio-v2-fase-5d-visual-selector-minimo.md`
+- `docs/archive/reinicio-v2-fase-5e-playback-preview.md`
+- `docs/archive/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md`
+- `docs/archive/reinicio-v2-fase-5e1-selector-playback-ux.md`
+- `docs/archive/reinicio-v2-fase-5f-render-final-workspace-aware.md`
+- `docs/archive/reinicio-v2-fase-5g-export-spritesheet-json.md`
 - `spritesheet_frame_selector/export/layout.py`
 - `spritesheet_frame_selector/export/metadata.py`
 - `spritesheet_frame_selector/export/composer.py`
@@ -80,9 +84,6 @@ Revisar `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`. Si el usuari
 - `spritesheet_frame_selector/core/validation.py`
 - `spritesheet_frame_selector/render/renderer.py`
 - `tests/test_render_state.py`
-- `docs/plans/reinicio-v2-fase-5b-gestion-clips.md`
-- `docs/plans/reinicio-v2-fase-5c-preview-cache.md`
-- `docs/plans/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md`
 - `docs/specs/workspace_root_decisions.md`
 - `docs/specs/workspace_root_refactor_evaluation.md`
 - `docs/specs/selector_modal_preview_modes_spike.md`

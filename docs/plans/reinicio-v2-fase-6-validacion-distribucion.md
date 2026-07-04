@@ -11,7 +11,7 @@ Estado De Ejecucion: pendiente
 
 ## Plan Rector Relacionado
 
-`docs/plans/reinicio-v2-fase-5-workspace-root-vertical-slices.md`
+`docs/archive/reinicio-v2-fase-5-workspace-root-vertical-slices.md`
 
 ## Resumen
 
@@ -38,8 +38,8 @@ Esta fase no debe agregar features nuevas de producto. Su objetivo es estabiliza
 - `docs/architecture/addon_architecture.md`
 - `docs/design/visual_selector_strategy.md`
 - `docs/plans/reinicio-v2-master-plan.md`
-- `docs/plans/reinicio-v2-fase-5-workspace-root-vertical-slices.md`
-- `docs/plans/reinicio-v2-fase-5g-export-spritesheet-json.md`
+- `docs/archive/reinicio-v2-fase-5-workspace-root-vertical-slices.md`
+- `docs/archive/reinicio-v2-fase-5g-export-spritesheet-json.md`
 
 ## Interpretacion Operativa
 

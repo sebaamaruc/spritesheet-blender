@@ -10,9 +10,9 @@ El usuario aprobo guardar un master plan para reiniciar `spritesheet-blender` co
 
 Este master plan no debe ejecutarse como plan monolitico. Cada fase o subfase que se beneficie de precision debe tener un plan especifico antes de ejecutarse. No implementar codigo ni limpiar archivos desde el master plan directamente.
 
-La Fase 1 fue ejecutada y validada en `docs/plans/reinicio-v2-fase-1-preservacion.md`. El estado trackeado previo quedo preservado por Git en la rama `archive/generated-addon-v1` y el tag anotado `archive/generated-addon-v1-2026-07-03`.
+La Fase 1 fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-1-preservacion.md`. El estado trackeado previo quedo preservado por Git en la rama `archive/generated-addon-v1` y el tag anotado `archive/generated-addon-v1-2026-07-03`.
 
-La Fase 2 fue ejecutada y validada en `docs/plans/reinicio-v2-fase-2-documentacion-base.md`. La documentacion operativa V2 vigente quedo separada en:
+La Fase 2 fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-2-documentacion-base.md`. La documentacion operativa V2 vigente quedo separada en:
 
 - `docs/specs/product_requirements.md`
 - `docs/specs/mvp_v2.md`
@@ -22,17 +22,17 @@ La Fase 2 fue ejecutada y validada en `docs/plans/reinicio-v2-fase-2-documentaci
 
 El MVP historico original fue preservado en `docs/archive/mvp-original.md`. `docs/specs/mvp.md` quedo como puntero historico/no operativo.
 
-La Fase 3 fue ejecutada y validada en `docs/plans/reinicio-v2-fase-3-limpieza-arbol-activo.md`. El addon V1, tests legacy, scratch y residuos locales fueron retirados del arbol activo. Las metas V1 de `docs/source/goals.md` y `docs/source/goals.proposed.md` fueron archivadas en `docs/archive/source-goals-v1.md` y `docs/archive/source-goals-proposed-v1.md`.
+La Fase 3 fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-3-limpieza-arbol-activo.md`. El addon V1, tests legacy, scratch y residuos locales fueron retirados del arbol activo. Las metas V1 de `docs/source/goals.md` y `docs/source/goals.proposed.md` fueron archivadas en `docs/archive/source-goals-v1.md` y `docs/archive/source-goals-proposed-v1.md`.
 
-La Fase 4 fue ejecutada y validada en `docs/plans/reinicio-v2-fase-4-scaffold-addon-v2.md`. Existe scaffold V2 minimo en `spritesheet_frame_selector/` con manifest, registro centralizado, preferencias, propiedad minima de escena y panel minimo. Validaron `compileall`, import/register/unregister con mock minimo de `bpy`, y Blender background real con Blender 5.1.1. Queda pendiente solo validacion manual GUI del panel.
+La Fase 4 fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-4-scaffold-addon-v2.md`. Existe scaffold V2 minimo en `spritesheet_frame_selector/` con manifest, registro centralizado, preferencias, propiedad minima de escena y panel minimo. Validaron `compileall`, import/register/unregister con mock minimo de `bpy`, y Blender background real con Blender 5.1.1. Queda pendiente solo validacion manual GUI del panel.
 
-El plan rector de Fase 5 fue aprobado en `docs/plans/reinicio-v2-fase-5-vertical-slices.md`. La Fase 5a fue ejecutada y validada en `docs/plans/reinicio-v2-fase-5a-data-model-persistencia.md`: existe modelo persistente V2 con clips, frames, export settings y estado de escena; Blender background valido persistencia save/reopen con `SFS_5A_PERSISTENCE_OK`.
+El plan rector de Fase 5 fue aprobado y archivado en `docs/archive/reinicio-v2-fase-5-vertical-slices.md`. La Fase 5a fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-5a-data-model-persistencia.md`: existe modelo persistente V2 con clips, frames, export settings y estado de escena; Blender background valido persistencia save/reopen con `SFS_5A_PERSISTENCE_OK`.
 
-La Fase 5b fue ejecutada y validada en `docs/plans/reinicio-v2-fase-5b-gestion-clips.md`: existen operadores Add/Remove/Duplicate/Select, UIList nativa, panel de edicion del clip activo, helpers puros de estado y tests unitarios. Blender background valido gestion de clips y persistencia save/reopen con `SFS_5B_CLIPS_OK`. Durante cierre de Blender aparecio un traceback de un addon externo local `Procedural-Stadiums-main`; no pertenece a este repo y no impidio la validacion.
+La Fase 5b fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-5b-gestion-clips.md`: existen operadores Add/Remove/Duplicate/Select, UIList nativa, panel de edicion del clip activo, helpers puros de estado y tests unitarios. Blender background valido gestion de clips y persistencia save/reopen con `SFS_5B_CLIPS_OK`. Durante cierre de Blender aparecio un traceback de un addon externo local `Procedural-Stadiums-main`; no pertenece a este repo y no impidio la validacion.
 
-La Fase 5c fue ejecutada y validada en `docs/plans/reinicio-v2-fase-5c-preview-cache.md`: existen operadores Generate/Refresh/Clear Preview, helpers de cache/paths/frame sync, backend de thumbnails y UI de estado. Blender background valido generacion, refresh conservando seleccion, clear cache conservando frames/seleccion y persistencia con `SFS_5C_PREVIEW_CACHE_OK`. OpenGL es la ruta primaria, pero Blender background usa fallback de thumbnail por render still porque `bpy.ops.render.opengl` no funciona sin contexto OpenGL. Durante cierre de Blender se repitio el traceback del addon externo local `Procedural-Stadiums-main`; no pertenece a este repo.
+La Fase 5c fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-5c-preview-cache.md`: existen operadores Generate/Refresh/Clear Preview, helpers de cache/paths/frame sync, backend de thumbnails y UI de estado. Blender background valido generacion, refresh conservando seleccion, clear cache conservando frames/seleccion y persistencia con `SFS_5C_PREVIEW_CACHE_OK`. OpenGL es la ruta primaria, pero Blender background usa fallback de thumbnail por render still porque `bpy.ops.render.opengl` no funciona sin contexto OpenGL. Durante cierre de Blender se repitio el traceback del addon externo local `Procedural-Stadiums-main`; no pertenece a este repo.
 
-El usuario confirmo que workspace es raiz de dominio en V2. Se registro `DEC-0006` y se creo el plan aprobado `docs/plans/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md`. Las fases 5a/5b/5c quedan sujetas a revision arquitectonica antes de continuar. La Fase 5d queda detenida hasta decidir si se refactoriza lo actual o se vuelve al scaffold limpio de Fase 4.
+El usuario confirmo que workspace es raiz de dominio en V2. Se registro `DEC-0006` y se creo el plan aprobado, luego validado y archivado, `docs/archive/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md`. Las fases 5a/5b/5c quedan sujetas a revision arquitectonica antes de continuar. La Fase 5d queda detenida hasta decidir si se refactoriza lo actual o se vuelve al scaffold limpio de Fase 4.
 
 W1 de la Fase 5c.1 fue ejecutada y validada. El entregable vive en `docs/specs/workspace_root_decisions.md` y clasifica decisiones V1 como incorporar, descartar, diferir o investigar. Las conclusiones principales son: workspace debe ser raiz persistente, export settings deben vivir bajo workspace, camera/default collections deben resolverse por workspace con override por clip, la visibilidad efectiva por collections es requisito fuerte, y el preview/render nativo debe investigarse antes de reintroducir soluciones tipo WorldSwap.
 
@@ -40,23 +40,23 @@ W2 de la Fase 5c.1 fue ejecutada y validada. Los documentos V2 ahora declaran wo
 
 W3 de la Fase 5c.1 fue ejecutada y validada. La evaluacion vive en `docs/specs/workspace_root_refactor_evaluation.md`. Decision registrada como `DEC-0009`: rehacer las slices 5a/5b/5c desde el scaffold limpio de Fase 4, reaprovechando solo helpers puros y patrones validados cuando encajen con workspace-root.
 
-W4 de la Fase 5c.1 fue ejecutada y validada. Se creo el nuevo rector `docs/plans/reinicio-v2-fase-5-workspace-root-vertical-slices.md` y el primer plan ejecutable `docs/plans/reinicio-v2-fase-5a-workspace-data-model-persistencia.md`. Los planes originales 5a/5b/5c fueron marcados como reemplazados por workspace-root y se conservan como historial validado.
+W4 de la Fase 5c.1 fue ejecutada y validada. Se creo el nuevo rector, luego archivado, `docs/archive/reinicio-v2-fase-5-workspace-root-vertical-slices.md` y el primer plan ejecutable, luego validado y archivado, `docs/archive/reinicio-v2-fase-5a-workspace-data-model-persistencia.md`. Los planes originales 5a/5b/5c fueron marcados como reemplazados por workspace-root y se conservan como historial validado en `docs/archive/`.
 
 La Fase 5a workspace-root fue ejecutada y validada. El addon registra un modelo persistente con `Scene.spritesheet_state.workspaces`, `SpriteSheetWorkspace`, defaults de camera/collections, clips, frames y export settings por workspace. Las validaciones automáticas pasaron y Blender background valido save/reopen con `SFS_5A_WORKSPACE_OK` fuera del sandbox porque el sandbox crasheaba antes de Python en inicializacion Metal.
 
-La Fase 5b workspace-root fue ejecutada y validada en `docs/plans/reinicio-v2-fase-5b-workspace-clip-management.md`: existen operadores y UI nativa para crear, eliminar, duplicar, seleccionar y reordenar workspaces/clips. Defaults de workspace y overrides de clip existen y persisten. Las validaciones automaticas pasaron y Blender background valido save/reopen con `SFS_5B_WORKSPACE_CLIPS_OK`.
+La Fase 5b workspace-root fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-5b-workspace-clip-management.md`: existen operadores y UI nativa para crear, eliminar, duplicar, seleccionar y reordenar workspaces/clips. Defaults de workspace y overrides de clip existen y persisten. Las validaciones automaticas pasaron y Blender background valido save/reopen con `SFS_5B_WORKSPACE_CLIPS_OK`.
 
-La Fase 5c workspace-root fue ejecutada y validada en `docs/plans/reinicio-v2-fase-5c-workspace-preview-cache.md`: previews cacheados operan sobre workspace activo y clip activo, resuelven camera/collections efectivas, usan cache por workspace id + clip id + cache key y preservan seleccion durante refresh/clear. Blender background valido generate/refresh/clear, overrides, separacion entre workspaces y persistencia save/reopen con `SFS_5C_WORKSPACE_PREVIEW_OK`.
+La Fase 5c workspace-root fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-5c-workspace-preview-cache.md`: previews cacheados operan sobre workspace activo y clip activo, resuelven camera/collections efectivas, usan cache por workspace id + clip id + cache key y preservan seleccion durante refresh/clear. Blender background valido generate/refresh/clear, overrides, separacion entre workspaces y persistencia save/reopen con `SFS_5C_WORKSPACE_PREVIEW_OK`.
 
-La Fase 5d workspace-root fue ejecutada y validada en `docs/plans/reinicio-v2-fase-5d-visual-selector-minimo.md`: existe selector visual minimo como dialogo nativo con grilla/contact sheet de thumbnails existentes, toggle por frame y acciones globales de seleccion. Blender background valido operadores, persistencia de seleccion y lifecycle con `SFS_5D_VISUAL_SELECTOR_OK`. Queda pendiente validacion manual GUI de clicks reales sobre el dialogo visual.
+La Fase 5d workspace-root fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-5d-visual-selector-minimo.md`: existe selector visual minimo como dialogo nativo con grilla/contact sheet de thumbnails existentes, toggle por frame y acciones globales de seleccion. Blender background valido operadores, persistencia de seleccion y lifecycle con `SFS_5D_VISUAL_SELECTOR_OK`. Queda pendiente validacion manual GUI de clicks reales sobre el dialogo visual.
 
-La Fase 5e workspace-root fue ejecutada y validada en `docs/plans/reinicio-v2-fase-5e-playback-preview.md`: existe playback preview runtime sobre previews cacheados existentes y frames seleccionados, con operadores Play/Pause/Stop, controlador con timer unico, estado visible en selector/panel y cleanup en `unregister()`. Validaron `compileall`, unit tests, busqueda de contrato legacy y Blender background con `SFS_5E_PLAYBACK_OK`.
+La Fase 5e workspace-root fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-5e-playback-preview.md`: existe playback preview runtime sobre previews cacheados existentes y frames seleccionados, con operadores Play/Pause/Stop, controlador con timer unico, estado visible en selector/panel y cleanup en `unregister()`. Validaron `compileall`, unit tests, busqueda de contrato legacy y Blender background con `SFS_5E_PLAYBACK_OK`.
 
-El usuario reviso manualmente selector/playback y detecto que los thumbnails son demasiado pequenos y que el playback no muestra claramente el resultado animado. Se ejecuto el spike `docs/plans/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md` y el resultado vive en `docs/specs/selector_modal_preview_modes_spike.md`. Decision registrada como `DEC-0010`: antes de render final se debe crear una fase correctiva para selector/playback UX con superficie modal/custom, visor grande, `selector_mode` persistente y preview modes persistentes.
+El usuario reviso manualmente selector/playback y detecto que los thumbnails son demasiado pequenos y que el playback no muestra claramente el resultado animado. Se ejecuto el spike archivado en `docs/archive/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md` y el resultado vive en `docs/specs/selector_modal_preview_modes_spike.md`. Decision registrada como `DEC-0010`: antes de render final se debe crear una fase correctiva para selector/playback UX con superficie modal/custom, visor grande, `selector_mode` persistente y preview modes persistentes.
 
 ## Proxima Accion Recomendada
 
-`docs/plans/reinicio-v2-fase-5e1-selector-playback-ux.md` fue aprobado por instruccion explicita del usuario e implementado. El plan incorpora la decision del usuario: `preview_size` minimo 32, default 64, preset 128 y maximo 256.
+`docs/archive/reinicio-v2-fase-5e1-selector-playback-ux.md` fue aprobado por instruccion explicita del usuario, implementado, validado y archivado. El plan incorpora la decision del usuario: `preview_size` minimo 32, default 64, preset 128 y maximo 256.
 
 Estado actual de 5e1: validado por revision manual del usuario. Quedan ajustes menores de UI, pero no son bloqueantes para avanzar. Compile y unit tests pasaron. Blender background dentro del sandbox crashea antes de ejecutar Python y la ejecucion fuera del sandbox fue rechazada por politica del entorno actual.
 
@@ -70,7 +70,7 @@ Cuarta correccion UX aplicada: el modo de preview ya no tiene default por worksp
 
 Pendiente operativo: `compileall` genero `__pycache__`; la limpieza automatica fue rechazada por politica del entorno y no se intento una via alternativa.
 
-Plan 5f fue aprobado por instruccion explicita del usuario e implementado en `docs/plans/reinicio-v2-fase-5f-render-final-workspace-aware.md`.
+Plan 5f fue aprobado por instruccion explicita del usuario, implementado y archivado en `docs/archive/reinicio-v2-fase-5f-render-final-workspace-aware.md`.
 
 Estado actual de 5f: funcionalidad base validada por usuario. El flujo publico separado de render/export por frame fue reemplazado por una opcion integrada en 5g.
 
@@ -84,7 +84,7 @@ Decision de contrato export/JSON aplicada el 2026-07-04: no se permiten nombres 
 
 Correccion de naming render final aplicada el 2026-07-04: los PNG de `Render Final Frames` usan indice de salida continuo, no el numero de frame original de Blender. Ejemplo: frames originales 3, 5 y 6 generan `*_frame_000001.png`, `*_frame_000002.png`, `*_frame_000003.png`. Compile y unit tests pasaron con 48 tests.
 
-Plan 5g fue aprobado por instruccion explicita del usuario e implementado en `docs/plans/reinicio-v2-fase-5g-export-spritesheet-json.md`.
+Plan 5g fue aprobado por instruccion explicita del usuario, implementado, validado y archivado en `docs/archive/reinicio-v2-fase-5g-export-spritesheet-json.md`.
 
 Estado actual de 5g: export validado por el usuario en Blender, incluidas las correcciones UI/naming/atajos posteriores. Compile, unit tests y busqueda legacy pasaron. Blender background crashea antes de ejecutar Python con exit code 139 en este entorno.
 

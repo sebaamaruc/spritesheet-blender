@@ -19,7 +19,7 @@ Motivo:
 - `DEC-0007`: los documentos V2 ya declaran workspace-root como contrato operativo.
 - `DEC-0009`: se decidio rehacer Fase 5 desde el scaffold limpio de Fase 4 para workspace-root.
 
-Los planes anteriores `docs/plans/reinicio-v2-fase-5a-data-model-persistencia.md`, `docs/plans/reinicio-v2-fase-5b-gestion-clips.md` y `docs/plans/reinicio-v2-fase-5c-preview-cache.md` se preservan como historial validado, pero no son base arquitectonica vigente.
+Los planes anteriores `docs/archive/reinicio-v2-fase-5a-data-model-persistencia.md`, `docs/archive/reinicio-v2-fase-5b-gestion-clips.md` y `docs/archive/reinicio-v2-fase-5c-preview-cache.md` se preservan como historial validado, pero no son base arquitectonica vigente.
 
 ## Objetivo
 
@@ -66,7 +66,7 @@ Reaprovechar no significa copiar la arquitectura antigua. Todo helper debe revis
 
 ### 5a: Workspace Data Model Y Persistencia
 
-Plan ejecutable: `docs/plans/reinicio-v2-fase-5a-workspace-data-model-persistencia.md`.
+Plan ejecutado, validado y archivado: `docs/archive/reinicio-v2-fase-5a-workspace-data-model-persistencia.md`.
 
 Objetivo:
 
@@ -83,7 +83,7 @@ Criterio de salida:
 
 ### 5b: Workspace Y Clip Management
 
-Plan ejecutado y validado: `docs/plans/reinicio-v2-fase-5b-workspace-clip-management.md`.
+Plan ejecutado, validado y archivado: `docs/archive/reinicio-v2-fase-5b-workspace-clip-management.md`.
 
 Objetivo:
 
@@ -99,7 +99,7 @@ Criterio de salida:
 
 ### 5c: Preview Cache Workspace-Aware
 
-Plan ejecutado y validado: `docs/plans/reinicio-v2-fase-5c-workspace-preview-cache.md`.
+Plan ejecutado, validado y archivado: `docs/archive/reinicio-v2-fase-5c-workspace-preview-cache.md`.
 
 Objetivo:
 
@@ -127,7 +127,7 @@ Este spike puede ejecutarse antes de 5c o como precondicion tecnica de 5c.
 
 ### 5d: Visual Selector Minimo
 
-Plan ejecutado y validado: `docs/plans/reinicio-v2-fase-5d-visual-selector-minimo.md`.
+Plan ejecutado, validado y archivado: `docs/archive/reinicio-v2-fase-5d-visual-selector-minimo.md`.
 
 Objetivo:
 
@@ -143,7 +143,7 @@ Criterio de salida:
 
 ### 5e: Playback Preview
 
-Plan ejecutado y validado: `docs/plans/reinicio-v2-fase-5e-playback-preview.md`.
+Plan ejecutado, validado y archivado: `docs/archive/reinicio-v2-fase-5e-playback-preview.md`.
 
 Objetivo:
 
@@ -161,15 +161,15 @@ Criterio de salida:
 
 ### 5f: Render Final Workspace-Aware
 
-Plan futuro: `docs/plans/reinicio-v2-fase-5f-render-final-workspace-aware.md`.
+Plan ejecutado y archivado: `docs/archive/reinicio-v2-fase-5f-render-final-workspace-aware.md`.
 
 ### 5e1: Correccion UX Selector/Playback
 
-Plan futuro requerido antes de 5f: `docs/plans/reinicio-v2-fase-5e1-selector-playback-ux.md`.
+Plan ejecutado, validado y archivado antes de 5f: `docs/archive/reinicio-v2-fase-5e1-selector-playback-ux.md`.
 
 Precedente tecnico validado:
 
-- `docs/plans/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md`
+- `docs/archive/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md`
 - `docs/specs/selector_modal_preview_modes_spike.md`
 
 Objetivo:
@@ -206,4 +206,4 @@ La Fase 5 workspace-root queda lista para continuar hacia selector visual cuando
 
 ## Proximo Paso
 
-Preparar `docs/plans/reinicio-v2-fase-5e1-selector-playback-ux.md`.
+Fase 5 workspace-root quedo ejecutada hasta 5g; el siguiente plan operativo propuesto es `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`.
