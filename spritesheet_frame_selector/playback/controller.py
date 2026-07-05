@@ -108,6 +108,19 @@ def tick_playback() -> bool:
     return True
 
 
+def seek_playback_frame(frame_number: int) -> bool:
+    """Move the active playback session to a specific frame without changing status."""
+    if _session is None:
+        return False
+    try:
+        index = _session.frame_numbers.index(frame_number)
+    except ValueError:
+        return False
+    _session.current_index = index
+    _tag_redraw()
+    return True
+
+
 def is_playing() -> bool:
     return _session is not None and _session.status == "playing"
 

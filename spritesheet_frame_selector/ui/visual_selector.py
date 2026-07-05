@@ -11,6 +11,7 @@ import bpy
 from ..playback.controller import active_session_matches
 from ..playback.controller import active_session_summary
 from ..playback.controller import current_frame_number
+from ..playback.controller import seek_playback_frame
 from ..playback.controller import stop_playback
 
 
@@ -23,9 +24,10 @@ FRAME_BORDER_BG_COLOR = (0.015, 0.017, 0.022, 1.0)
 TEXT_COLOR = (0.92, 0.92, 0.92, 1.0)
 MUTED_COLOR = (0.45, 0.45, 0.45, 1.0)
 SURFACE_SAFE_LEFT = 78
-SURFACE_SAFE_TOP = 76
-SURFACE_SAFE_RIGHT = 18
+SURFACE_SAFE_TOP = 88
+SURFACE_SAFE_RIGHT = 36
 SURFACE_SAFE_BOTTOM = 18
+SURFACE_RIGHT_UI_GUTTER = 34
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,13 @@ class ButtonCell:
     rect: Rect
 
 
+@dataclass(frozen=True)
+class CheckerboardLayout:
+    key: tuple[Any, ...]
+    base_batch: Any
+    light_batch: Any
+
+
 class VisualSelectorSession:
     """Runtime state for the modal selector."""
 
@@ -70,6 +79,8 @@ class VisualSelectorSession:
         self.frame_cells: list[FrameCell] = []
         self.button_cells: list[ButtonCell] = []
         self.images: dict[str, bpy.types.Image] = {}
+        self.checkerboard_layout: CheckerboardLayout | None = None
+        self.rect_shader: Any | None = None
 
     def open(self) -> None:
         self.draw_handler = bpy.types.SpaceView3D.draw_handler_add(
@@ -88,6 +99,8 @@ class VisualSelectorSession:
             self.draw_handler = None
         stop_playback()
         self._release_images()
+        self.checkerboard_layout = None
+        self.rect_shader = None
         _tag_redraw(self.area)
 
     def draw(self) -> None:
@@ -131,24 +144,26 @@ class VisualSelectorSession:
         viewer_y = panel.y + panel.height - header_h - viewer_h - margin
         viewer = Rect(panel.x + margin, viewer_y, viewer_w, viewer_h)
         controls = Rect(viewer.x + viewer.width + margin, viewer.y, controls_w, viewer_h)
-        _draw_checkerboard(gpu, batch_for_shader, viewer, 18)
         _draw_rect(gpu, batch_for_shader, controls, (0.03, 0.03, 0.03, 1.0))
 
         current_number = _current_display_frame(workspace, clip)
         current_frame = _frame_by_number(clip, current_number) if current_number is not None else None
-        if current_frame is not None:
-            _draw_checkerboard(gpu, batch_for_shader, viewer, 18)
-            _draw_preview_image(gpu, batch_for_shader, self, current_frame.preview_path, viewer)
-            _draw_text(blf, viewer.x + 12, viewer.y + 12, f"Frame {current_frame.frame_number}", 18)
-        else:
-            _draw_text(blf, viewer.x + 20, viewer.y + viewer.height / 2, "No frame selected", 18, MUTED_COLOR)
-
-        self._draw_controls(blf, gpu, batch_for_shader, controls, workspace)
+        preview_display_rect = _preview_display_rect(self, current_frame, viewer, float(clip.preview_size))
 
         grid_top = viewer.y - margin
         grid_bottom = panel.y + margin
         grid_height = max(0, grid_top - grid_bottom)
         if grid_height < 48:
+            try:
+                _draw_batched_checkerboard(gpu, batch_for_shader, self, preview_display_rect, [])
+            except Exception:
+                _draw_preview_fallback_backgrounds(gpu, batch_for_shader, preview_display_rect, [])
+            if current_frame is not None:
+                _draw_preview_image(gpu, batch_for_shader, self, current_frame.preview_path, viewer)
+                _draw_text(blf, viewer.x + 12, viewer.y + 12, f"Frame {current_frame.frame_number}", 18)
+            else:
+                _draw_text(blf, viewer.x + 20, viewer.y + viewer.height / 2, "No frame selected", 18, MUTED_COLOR)
+            self._draw_controls(blf, gpu, batch_for_shader, controls, workspace)
             _draw_text(blf, panel.x + margin, panel.y + margin, "Viewport too small for frame grid", 11, MUTED_COLOR)
             return
         cell_size = max(48, min(float(clip.preview_size), 128.0, grid_height))
@@ -162,21 +177,46 @@ class VisualSelectorSession:
         active_frame_number = current_frame_number() if session_matches else current_number
 
         visible_frames = list(clip.frames[:max_visible])
-        for index, frame in enumerate(visible_frames):
+        frame_rects: list[Rect] = []
+        for index, _frame in enumerate(visible_frames):
             rect = Rect(x, y, cell_size, cell_size)
-            self.frame_cells.append(FrameCell(index, rect))
+            frame_rects.append(rect)
+            x += cell_size + gap
+            if (index + 1) % columns == 0:
+                x = panel.x + margin
+                y -= cell_size + gap
+
+        for rect in frame_rects:
             _draw_rect(gpu, batch_for_shader, rect, FRAME_BORDER_BG_COLOR)
-            _draw_checkerboard(gpu, batch_for_shader, _inset_rect(rect, 2), 8)
+
+        try:
+            _draw_batched_checkerboard(
+                gpu,
+                batch_for_shader,
+                self,
+                preview_display_rect,
+                frame_rects,
+            )
+        except Exception:
+            _draw_preview_fallback_backgrounds(gpu, batch_for_shader, preview_display_rect, frame_rects)
+
+        if current_frame is not None:
+            _draw_preview_image(gpu, batch_for_shader, self, current_frame.preview_path, viewer)
+            _draw_text(blf, viewer.x + 12, viewer.y + 12, f"Frame {current_frame.frame_number}", 18)
+        else:
+            _draw_text(blf, viewer.x + 20, viewer.y + viewer.height / 2, "No frame selected", 18, MUTED_COLOR)
+
+        self._draw_controls(blf, gpu, batch_for_shader, controls, workspace)
+
+        for index, frame in enumerate(visible_frames):
+            rect = frame_rects[index]
+            self.frame_cells.append(FrameCell(index, rect))
             _draw_preview_image(gpu, batch_for_shader, self, frame.preview_path, rect)
             _draw_text(blf, rect.x + 6, rect.y + 6, str(frame.frame_number), 11)
             if frame.selected:
                 _draw_outline(gpu, batch_for_shader, rect, SELECTED_COLOR, 3)
             if frame.frame_number == active_frame_number:
                 _draw_outline(gpu, batch_for_shader, _inset_rect(rect, 4), CURRENT_COLOR, 3)
-            x += cell_size + gap
-            if (index + 1) % columns == 0:
-                x = panel.x + margin
-                y -= cell_size + gap
         if len(clip.frames) > max_visible:
             _draw_text(
                 blf,
@@ -336,7 +376,7 @@ def _handle_click(context: bpy.types.Context, x: float, y: float) -> None:
             if workspace.selector_mode == "EDIT":
                 clip.frames[cell.index].selected = not clip.frames[cell.index].selected
             else:
-                clip.active_frame_index = cell.index
+                _set_play_mode_current_frame(workspace, clip, cell.index)
             return
 
 
@@ -391,6 +431,18 @@ def _return_to_first_frame(context: bpy.types.Context) -> None:
         return
     stop_playback()
     clip.active_frame_index = 0
+
+
+def _set_play_mode_current_frame(workspace: Any, clip: Any, index: int) -> None:
+    if index < 0 or index >= len(clip.frames):
+        return
+    clip.active_frame_index = index
+    frame_number = clip.frames[index].frame_number
+    if not active_session_matches(workspace.id, clip.id):
+        return
+    if seek_playback_frame(frame_number):
+        return
+    stop_playback()
 
 
 def _current_display_frame(workspace: Any, clip: Any) -> int | None:
@@ -451,6 +503,36 @@ def _draw_preview_image(gpu: Any, batch_for_shader: Any, session: VisualSelector
         return
 
 
+def _preview_display_rect(session: VisualSelectorSession, frame: Any | None, viewer: Rect, preview_size: float) -> Rect:
+    if frame is not None:
+        image = _cached_image_or_none(session, getattr(frame, "preview_path", ""))
+        if image is not None:
+            return _image_fit_rect(image, viewer)
+    size = max(32.0, min(preview_size, viewer.height, viewer.width))
+    return Rect(
+        viewer.x + (viewer.width - size) / 2,
+        viewer.y + (viewer.height - size) / 2,
+        size,
+        size,
+    )
+
+
+def _cached_image_or_none(session: VisualSelectorSession, path: str) -> Any | None:
+    if not path:
+        return None
+    absolute_path = bpy.path.abspath(path)
+    if not os.path.isfile(absolute_path):
+        return None
+    try:
+        image = session.images.get(absolute_path)
+        if image is None:
+            image = bpy.data.images.load(absolute_path, check_existing=True)
+            session.images[absolute_path] = image
+        return image
+    except Exception:
+        return None
+
+
 def _draw_rect(gpu: Any, batch_for_shader: Any, rect: Rect, color: tuple[float, float, float, float]) -> None:
     shader = gpu.shader.from_builtin("UNIFORM_COLOR")
     vertices = (
@@ -465,8 +547,51 @@ def _draw_rect(gpu: Any, batch_for_shader: Any, rect: Rect, color: tuple[float, 
     batch.draw(shader)
 
 
-def _draw_checkerboard(gpu: Any, batch_for_shader: Any, rect: Rect, cell_size: int) -> None:
-    cell = max(4, int(cell_size))
+def _draw_batched_checkerboard(
+    gpu: Any,
+    batch_for_shader: Any,
+    session: VisualSelectorSession,
+    viewer: Rect,
+    frame_rects: list[Rect],
+) -> None:
+    areas = [(viewer, 18)]
+    areas.extend((_inset_rect(rect, 2), 16) for rect in frame_rects)
+    key = _checkerboard_layout_key(areas)
+    if session.checkerboard_layout is None or session.checkerboard_layout.key != key:
+        session.checkerboard_layout = _build_checkerboard_layout(gpu, batch_for_shader, session, areas, key)
+
+    layout = session.checkerboard_layout
+    shader = session.rect_shader
+    if layout is None or shader is None:
+        raise RuntimeError("Checkerboard batch unavailable")
+    _draw_colored_batch(shader, layout.base_batch, PREVIEW_CHECKER_DARK)
+    _draw_colored_batch(shader, layout.light_batch, PREVIEW_CHECKER_LIGHT)
+
+
+def _build_checkerboard_layout(
+    gpu: Any,
+    batch_for_shader: Any,
+    session: VisualSelectorSession,
+    areas: list[tuple[Rect, int]],
+    key: tuple[Any, ...],
+) -> CheckerboardLayout:
+    if session.rect_shader is None:
+        session.rect_shader = gpu.shader.from_builtin("UNIFORM_COLOR")
+    shader = session.rect_shader
+    base_vertices: list[tuple[float, float]] = []
+    light_vertices: list[tuple[float, float]] = []
+    for rect, cell_size in areas:
+        _append_rect_triangles(base_vertices, rect)
+        _append_checker_light_triangles(light_vertices, rect, cell_size)
+    if not base_vertices:
+        raise RuntimeError("Empty checkerboard layout")
+    base_batch = batch_for_shader(shader, "TRIS", {"pos": base_vertices})
+    light_batch = batch_for_shader(shader, "TRIS", {"pos": light_vertices}) if light_vertices else None
+    return CheckerboardLayout(key=key, base_batch=base_batch, light_batch=light_batch)
+
+
+def _append_checker_light_triangles(vertices: list[tuple[float, float]], rect: Rect, cell_size: int) -> None:
+    cell = max(8, int(cell_size))
     columns = int(rect.width // cell) + 1
     rows = int(rect.height // cell) + 1
     for row in range(rows):
@@ -475,12 +600,66 @@ def _draw_checkerboard(gpu: Any, batch_for_shader: Any, rect: Rect, cell_size: i
         if height <= 0:
             continue
         for column in range(columns):
+            if (row + column) % 2 != 0:
+                continue
             x = rect.x + column * cell
             width = min(cell, rect.x + rect.width - x)
             if width <= 0:
                 continue
-            color = PREVIEW_CHECKER_LIGHT if (row + column) % 2 == 0 else PREVIEW_CHECKER_DARK
-            _draw_rect(gpu, batch_for_shader, Rect(x, y, width, height), color)
+            _append_rect_triangles(vertices, Rect(x, y, width, height))
+
+
+def _append_rect_triangles(vertices: list[tuple[float, float]], rect: Rect) -> None:
+    x1 = rect.x
+    y1 = rect.y
+    x2 = rect.x + rect.width
+    y2 = rect.y + rect.height
+    vertices.extend(
+        (
+            (x1, y1),
+            (x2, y1),
+            (x2, y2),
+            (x1, y1),
+            (x2, y2),
+            (x1, y2),
+        )
+    )
+
+
+def _draw_colored_batch(
+    shader: Any,
+    batch: Any | None,
+    color: tuple[float, float, float, float],
+) -> None:
+    if batch is None:
+        return
+    shader.bind()
+    shader.uniform_float("color", color)
+    batch.draw(shader)
+
+
+def _checkerboard_layout_key(areas: list[tuple[Rect, int]]) -> tuple[Any, ...]:
+    return tuple(
+        (
+            round(rect.x, 2),
+            round(rect.y, 2),
+            round(rect.width, 2),
+            round(rect.height, 2),
+            int(cell_size),
+        )
+        for rect, cell_size in areas
+    )
+
+
+def _draw_preview_fallback_backgrounds(
+    gpu: Any,
+    batch_for_shader: Any,
+    viewer: Rect,
+    frame_rects: list[Rect],
+) -> None:
+    _draw_rect(gpu, batch_for_shader, viewer, PREVIEW_CHECKER_DARK)
+    for rect in frame_rects:
+        _draw_rect(gpu, batch_for_shader, _inset_rect(rect, 2), PREVIEW_CHECKER_DARK)
 
 
 def _selector_panel_rect(region_width: float, region_height: float, area: Any) -> Rect:
@@ -506,9 +685,9 @@ def _right_ui_overlay_width(area: Any, region_width: float) -> float:
         if x is not None:
             x = float(x)
             if 0 <= x < region_width:
-                overlay_width = max(overlay_width, region_width - x)
+                overlay_width = max(overlay_width, region_width - x + SURFACE_RIGHT_UI_GUTTER)
             continue
-        overlay_width = max(overlay_width, min(width, 420.0))
+        overlay_width = max(overlay_width, min(width + SURFACE_RIGHT_UI_GUTTER, 460.0))
     return overlay_width
 
 

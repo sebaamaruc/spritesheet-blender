@@ -1,6 +1,6 @@
 # Context Index
 
-Ultima actualizacion: 2026-07-03
+Ultima actualizacion: 2026-07-05
 
 ## Lectura Minima
 
@@ -31,7 +31,8 @@ Leer siempre:
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
-| `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md` | Revisar y aprobar antes de ejecutar validacion final, packaging e instalacion ZIP | propuesto | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md` | Revisar y aprobar antes de corregir los hallazgos de `docs/technical-audit.md` | propuesto | vigente | alta |
+| `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md` | Revisar y aprobar despues de validar Fase 6, antes de packaging e instalacion ZIP | propuesto | diferido | alta |
 
 ## Planes Derivados Implementados Pendientes De Validacion
 
@@ -47,6 +48,7 @@ Leer siempre:
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
+| `docs/technical-audit.md` | Antes de planificar o ejecutar Fase 6; fuente de hallazgos tecnicos C/A/M/B | auditoria_tecnica | vigente | alta |
 | `docs/specs/PROJECT_VISION.md` | Para entender la filosofia de UX, workflow de multi-clips y playbacks | activo | vigente | alta |
 | `docs/specs/product_requirements.md` | Para entender producto, usuario objetivo, objetivos, no objetivos y criterios de exito V2 | activo | vigente | alta |
 | `docs/specs/mvp_v2.md` | Para planificar e implementar alcance MVP V2 | activo | vigente | alta |
@@ -54,7 +56,7 @@ Leer siempre:
 | `docs/specs/workspace_root_decisions.md` | Antes de actualizar docs V2 o replanificar Fase 5 con workspace como raiz | activo | vigente | alta |
 | `docs/specs/workspace_root_refactor_evaluation.md` | Antes de replanificar Fase 5 workspace-root; contiene decision refactor vs reinicio | activo | vigente | alta |
 | `docs/specs/selector_modal_preview_modes_spike.md` | Antes de crear o implementar 5e1 selector/playback UX | activo | vigente | alta |
-| `docs/specs/mvp.md` | Para ubicar la referencia historica al MVP original archivado | historico | reemplazado | alta |
+| `docs/specs/mvp.md` | Para ubicar la referencia historica al MVP original archivado | historico | stale | alta |
 
 ## Arquitectura
 
@@ -82,25 +84,25 @@ Los documentos obsoletos o reemplazados viven en `docs/archive/`.
 |---|---|---|---|---|
 | `docs/archive/implementation_plan.md` | Referencia del plan original de Ordered Clip List (Fase 1) | cerrado | stale | alta |
 | `docs/archive/audit_report.md` | Referencia historica de los bugs detectados antes de Workspace V1 | historico | stale | alta |
-| `docs/archive/mvp-original.md` | Copia integra del MVP historico previo a la normalizacion V2 | historico | reemplazado | alta |
-| `docs/archive/source-goals-v1.md` | Metas V1 archivadas; no usar como estado operativo vigente | historico | reemplazado | alta |
-| `docs/archive/source-goals-proposed-v1.md` | Borrador de metas V1 archivado; no usar como estado operativo vigente | historico | reemplazado | alta |
-| `docs/archive/reinicio-v2-fase-1-preservacion.md` | Preservacion Git del estado V1 validada | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-2-documentacion-base.md` | Normalizacion documental V2 validada | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-3-limpieza-arbol-activo.md` | Limpieza del arbol activo validada | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-4-scaffold-addon-v2.md` | Scaffold V2 validado | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5-vertical-slices.md` | Plan rector original de Fase 5 reemplazado parcialmente por workspace-root | reemplazado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5-workspace-root-vertical-slices.md` | Plan rector workspace-root de Fase 5 ejecutado hasta 5g | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5a-data-model-persistencia.md` | Historial del intento 5a original basado en clips directos bajo Scene state | reemplazado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5b-gestion-clips.md` | Historial del intento 5b original basado en lista global de clips | reemplazado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5c-preview-cache.md` | Historial del intento 5c original basado en preview cache por clip global | reemplazado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md` | Auditoria y rediseno workspace-root validados; contexto historico inmediato | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5a-workspace-data-model-persistencia.md` | Modelo persistente workspace-root validado | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5b-workspace-clip-management.md` | Gestion workspace-root de workspaces/clips validada | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5c-workspace-preview-cache.md` | Preview cache workspace-aware validado | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5d-visual-selector-minimo.md` | Selector visual minimo validado | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5e-playback-preview.md` | Playback preview validado | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md` | Spike selector modal/preview modes validado | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5e1-selector-playback-ux.md` | Correcciones UX selector/playback validadas | validado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5f-render-final-workspace-aware.md` | Render final workspace-aware reemplazado por flujo integrado en 5g | reemplazado | historico | alta |
-| `docs/archive/reinicio-v2-fase-5g-export-spritesheet-json.md` | Export spritesheet, JSON, frames individuales y correcciones UI/naming/atajos validados | validado | historico | alta |
+| `docs/archive/mvp-original.md` | Copia integra del MVP historico previo a la normalizacion V2 | historico | archivado | alta |
+| `docs/archive/source-goals-v1.md` | Metas V1 archivadas; no usar como estado operativo vigente | historico | archivado | alta |
+| `docs/archive/source-goals-proposed-v1.md` | Borrador de metas V1 archivado; no usar como estado operativo vigente | historico | archivado | alta |
+| `docs/archive/reinicio-v2-fase-1-preservacion.md` | Preservacion Git del estado V1 validada | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-2-documentacion-base.md` | Normalizacion documental V2 validada | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-3-limpieza-arbol-activo.md` | Limpieza del arbol activo validada | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-4-scaffold-addon-v2.md` | Scaffold V2 validado | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5-vertical-slices.md` | Plan rector original de Fase 5 reemplazado parcialmente por workspace-root | reemplazado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5-workspace-root-vertical-slices.md` | Plan rector workspace-root de Fase 5 ejecutado hasta 5g | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5a-data-model-persistencia.md` | Historial del intento 5a original basado en clips directos bajo Scene state | reemplazado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5b-gestion-clips.md` | Historial del intento 5b original basado en lista global de clips | reemplazado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5c-preview-cache.md` | Historial del intento 5c original basado en preview cache por clip global | reemplazado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md` | Auditoria y rediseno workspace-root validados; contexto historico inmediato | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5a-workspace-data-model-persistencia.md` | Modelo persistente workspace-root validado | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5b-workspace-clip-management.md` | Gestion workspace-root de workspaces/clips validada | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5c-workspace-preview-cache.md` | Preview cache workspace-aware validado | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5d-visual-selector-minimo.md` | Selector visual minimo validado | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5e-playback-preview.md` | Playback preview validado | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md` | Spike selector modal/preview modes validado | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5e1-selector-playback-ux.md` | Correcciones UX selector/playback validadas | validado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5f-render-final-workspace-aware.md` | Render final workspace-aware reemplazado por flujo integrado en 5g | reemplazado | archivado | alta |
+| `docs/archive/reinicio-v2-fase-5g-export-spritesheet-json.md` | Export spritesheet, JSON, frames individuales y correcciones UI/naming/atajos validados | validado | archivado | alta |

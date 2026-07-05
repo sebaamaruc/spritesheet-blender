@@ -2,7 +2,7 @@
 
 PCS-Version: 1
 PCS-Template-Version: 1.0.0
-Ultima actualizacion: 2026-07-04
+Ultima actualizacion: 2026-07-05
 Actualizado por: Codex
 
 ## Resumen Actual
@@ -13,11 +13,11 @@ El plan gobernante aprobado es `docs/plans/reinicio-v2-master-plan.md`. Este mas
 
 ## Tarea Activa
 
-Revisar y aprobar el plan propuesto de Fase 6 validacion/distribucion.
+Revisar y aprobar el plan rector propuesto de Fase 6 correcciones de auditoria tecnica.
 
 ## Proximo Paso Recomendado
 
-Revisar `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`. Si el usuario lo aprueba, persistirlo como plan activo aprobado antes de ejecutarlo.
+Revisar `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`. Si el usuario lo aprueba, persistirlo como plan activo aprobado antes de crear o ejecutar subplanes.
 
 ## Estado
 
@@ -45,7 +45,9 @@ Revisar `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`. Si el usuari
 - Fase 5f render final workspace-aware: funcionalidad validada por usuario; flujo publico separado reemplazado por opcion integrada en 5g
 - Fase 5g export spritesheet y JSON: validada por usuario, incluidas correcciones UI/naming/atajos
 - Subplanes implementados de Fase 5: archivados en `docs/archive/`
-- Fase 6 validacion final y distribucion: plan propuesto
+- Auditoria tecnica post-Fase 5: fuente vigente para Fase 6
+- Fase 6 correcciones de auditoria tecnica: plan rector propuesto
+- Fase 7 validacion final y distribucion: plan propuesto, diferido hasta validar Fase 6
 - Ejecucion de reinicio V2: pendiente de planes especificos por fase
 
 ## Archivos Relevantes Ahora
@@ -56,6 +58,9 @@ Revisar `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`. Si el usuari
 - `.context/handoff.md`
 - `.context/decisions.md`
 - `docs/plans/reinicio-v2-master-plan.md`
+- `docs/technical-audit.md`
+- `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`
+- `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`
 - `docs/archive/reinicio-v2-fase-1-preservacion.md`
 - `docs/archive/reinicio-v2-fase-2-documentacion-base.md`
 - `docs/archive/reinicio-v2-fase-3-limpieza-arbol-activo.md`
@@ -102,7 +107,7 @@ Revisar `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`. Si el usuari
 
 ## Plan Activo
 
-Sin plan activo ejecutable. Plan propuesto pendiente de revision: `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`
+Ninguno.
 
 ## Decisiones Vigentes Relevantes
 
@@ -126,7 +131,8 @@ Sin plan activo ejecutable. Plan propuesto pendiente de revision: `docs/plans/re
 
 ## Riesgos Abiertos
 
-- Fase 6 puede descubrir bugs de packaging/lifecycle que requieran correcciones menores antes de distribuir.
+- Fase 7 puede descubrir bugs de packaging/lifecycle que requieran correcciones menores antes de distribuir.
+- `docs/technical-audit.md` detecto hallazgos criticos/altos que deben corregirse o clasificarse antes de distribucion.
 - Blender background dentro del sandbox crashea antes de ejecutar Python; fuera del sandbox fue rechazado por politica del entorno actual en validaciones previas.
 - La limpieza automatica de `__pycache__` generados por validacion fue rechazada por politica del entorno; no se intento una via alternativa.
 
@@ -136,4 +142,4 @@ Ninguno detectado para ejecutar la auditoria workspace-root.
 
 ## Validaciones Pendientes
 
-- Revisar/aprobar `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`.
+- Revisar/aprobar `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`.

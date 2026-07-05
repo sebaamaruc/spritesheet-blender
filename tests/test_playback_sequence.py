@@ -1,6 +1,34 @@
 import unittest
+import sys
 from types import SimpleNamespace
 
+if "bpy" not in sys.modules:
+    sys.modules["bpy"] = SimpleNamespace(
+        app=SimpleNamespace(
+            timers=SimpleNamespace(
+                register=lambda *_args, **_kwargs: None,
+                unregister=lambda *_args, **_kwargs: None,
+                is_registered=lambda *_args, **_kwargs: False,
+            )
+        ),
+        ops=SimpleNamespace(
+            render=SimpleNamespace(
+                opengl=lambda **_kwargs: {"FINISHED"},
+                render=lambda **_kwargs: {"FINISHED"},
+            ),
+        ),
+        context=SimpleNamespace(window_manager=SimpleNamespace(windows=[])),
+        types=SimpleNamespace(
+            Context=object,
+            PropertyGroup=object,
+            Object=object,
+            Collection=object,
+        ),
+    )
+
+from spritesheet_frame_selector.playback import controller
+from spritesheet_frame_selector.playback.controller import PlaybackSession
+from spritesheet_frame_selector.playback.controller import seek_playback_frame
 from spritesheet_frame_selector.playback.sequence import (
     next_playback_index,
     playback_frame_numbers,
@@ -34,6 +62,10 @@ def fake_clip():
 
 
 class PlaybackSequenceTests(unittest.TestCase):
+    def tearDown(self):
+        controller._session = None
+        controller._timer_registered = False
+
     def test_selected_frames_are_sorted_by_frame_number(self):
         clip = fake_clip()
 
@@ -85,6 +117,43 @@ class PlaybackSequenceTests(unittest.TestCase):
         self.assertEqual(clip.cache_key, "cache")
         self.assertEqual(clip.cache_folder, "/tmp/cache")
         self.assertFalse(clip.cache_dirty)
+
+    def test_seek_playback_frame_moves_to_existing_frame_and_preserves_status(self):
+        controller._session = PlaybackSession(
+            workspace_id="workspace",
+            clip_id="clip",
+            frame_numbers=[3, 10, 12],
+            preview_paths=["/tmp/3.png", "/tmp/10.png", "/tmp/12.png"],
+            fps=12,
+            loop=True,
+            current_index=0,
+            status="playing",
+        )
+
+        self.assertTrue(seek_playback_frame(10))
+        self.assertEqual(controller._session.current_index, 1)
+        self.assertEqual(controller._session.status, "playing")
+
+    def test_seek_playback_frame_returns_false_for_missing_frame(self):
+        controller._session = PlaybackSession(
+            workspace_id="workspace",
+            clip_id="clip",
+            frame_numbers=[3, 10],
+            preview_paths=["/tmp/3.png", "/tmp/10.png"],
+            fps=12,
+            loop=True,
+            current_index=1,
+            status="paused",
+        )
+
+        self.assertFalse(seek_playback_frame(99))
+        self.assertEqual(controller._session.current_index, 1)
+        self.assertEqual(controller._session.status, "paused")
+
+    def test_seek_playback_frame_returns_false_without_session(self):
+        controller._session = None
+
+        self.assertFalse(seek_playback_frame(3))
 
 
 if __name__ == "__main__":

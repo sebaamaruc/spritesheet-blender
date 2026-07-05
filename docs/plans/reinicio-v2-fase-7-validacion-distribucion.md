@@ -1,4 +1,4 @@
-# Plan Fase 6 - Validacion Final Y Distribucion
+# Plan Fase 7 - Validacion Final Y Distribucion
 
 Estado: propuesto
 Autoridad: pendiente
@@ -15,7 +15,7 @@ Estado De Ejecucion: pendiente
 
 ## Resumen
 
-Preparar el addon V2 para uso distribuible: validar el flujo MVP completo en Blender, revisar lifecycle de registro/recarga, limpiar residuos, confirmar contrato de export PNG/JSON, revisar metadata/manifest y generar un ZIP instalable limpio.
+Preparar el addon V2 para uso distribuible despues de ejecutar la Fase 6 de correcciones de auditoria tecnica: validar el flujo MVP completo en Blender, revisar lifecycle de registro/recarga, limpiar residuos, confirmar contrato de export PNG/JSON, revisar metadata/manifest y generar un ZIP instalable limpio.
 
 Esta fase no debe agregar features nuevas de producto. Su objetivo es estabilizar lo ya implementado y convertirlo en un paquete confiable.
 
@@ -29,6 +29,7 @@ Esta fase no debe agregar features nuevas de producto. Su objetivo es estabiliza
 - Fase 5e1 selector/playback UX: validada con correcciones posteriores.
 - Fase 5f render final workspace-aware: funcionalidad validada por usuario; flujo publico separado reemplazado por opcion integrada en 5g.
 - Fase 5g export spritesheet y JSON: validada por usuario; correcciones UI/naming/atajos posteriores validadas por usuario.
+- Fase 6 correcciones de auditoria tecnica: pendiente de aprobacion, implementacion y validacion.
 
 ## Documentacion Fuente Usada
 
@@ -49,7 +50,7 @@ El MVP V2 ya tiene implementado el flujo principal:
 workspace -> clips -> preview -> selector -> playback -> export PNG/JSON
 ```
 
-La Fase 6 debe verificar que ese flujo sea instalable, repetible y distribuible. Si aparecen bugs durante validacion, deben corregirse dentro de esta fase solo cuando sean defectos de estabilizacion, packaging, docs, lifecycle o validacion. Nuevas features deben quedar fuera.
+La Fase 7 debe verificar que ese flujo sea instalable, repetible y distribuible despues de que la Fase 6 haya corregido o clasificado explicitamente los hallazgos de `docs/technical-audit.md`. Si aparecen bugs durante validacion, deben corregirse dentro de esta fase solo cuando sean defectos de estabilizacion, packaging, docs, lifecycle o validacion. Nuevas features deben quedar fuera.
 
 ## Objetivo
 
@@ -61,7 +62,7 @@ Dejar el addon V2 en estado de paquete instalable para prueba real:
 - Validaciones automaticas repetibles.
 - Sin residuos locales dentro del paquete.
 - Documentacion minima de instalacion, uso y limitaciones.
-- PCS actualizado para reflejar el estado final de Fase 6 sin cerrar el proyecto salvo instruccion explicita.
+- PCS actualizado para reflejar el estado final de Fase 7 sin cerrar el proyecto salvo instruccion explicita.
 
 ## Alcance
 
@@ -117,7 +118,7 @@ Dejar el addon V2 en estado de paquete instalable para prueba real:
 - `.gitignore`
 - `README.md` o `docs/usage/installation.md` si se decide documentacion en `docs/`
 - `docs/specs/validation_plan.md`
-- `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`
+- `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`
 - `.context/agent_context.md`
 - `.context/index.md`
 - `.context/handoff.md`
@@ -158,25 +159,26 @@ Dejar el addon V2 en estado de paquete instalable para prueba real:
    - `tags`.
 6. Revisar `.gitignore` y reglas para artefactos.
 7. Revisar contrato JSON real generado por 5g y decidir si docs deben alinearse con el contrato validado.
-8. Reconciliar Fase 5h:
+8. Confirmar que la Fase 6 de correcciones de auditoria tecnica quedo validada o que sus diferidos estan documentados como no bloqueantes para distribucion.
+9. Reconciliar Fase 5h:
    - si el MVP multi-clip JSON ya esta cubierto por 5g, documentar 5h como diferida/reemplazada por 5g;
-   - si falta algo critico para MVP, detener Fase 6 y proponer subplan 5h especifico antes de distribuir.
-9. Ejecutar validaciones automaticas:
+   - si falta algo critico para MVP, detener Fase 7 y proponer subplan 5h especifico antes de distribuir.
+10. Ejecutar validaciones automaticas:
    - `python3 -m compileall spritesheet_frame_selector`
    - `python3 -m unittest discover -s tests`
    - busquedas `rg` para residuos conocidos.
-10. Ejecutar validacion de lifecycle con Blender si el entorno lo permite:
+11. Ejecutar validacion de lifecycle con Blender si el entorno lo permite:
     - importar addon;
     - `register()` / `unregister()` repetido;
     - activar/desactivar/reactivar si se puede desde CLI o GUI.
-11. Ejecutar matriz manual en Blender GUI.
-12. Corregir solo bugs de estabilizacion encontrados.
-13. Limpiar residuos generados por validacion con aprobacion si el entorno la requiere.
-14. Crear ZIP instalable limpio en una ruta acordada o temporal ignorada.
-15. Inspeccionar contenido del ZIP.
-16. Probar instalacion del ZIP en Blender.
-17. Actualizar documentacion minima de instalacion/uso/limitaciones.
-18. Actualizar plan y PCS segun resultado.
+12. Ejecutar matriz manual en Blender GUI.
+13. Corregir solo bugs de estabilizacion encontrados.
+14. Limpiar residuos generados por validacion con aprobacion si el entorno la requiere.
+15. Crear ZIP instalable limpio en una ruta acordada o temporal ignorada.
+16. Inspeccionar contenido del ZIP.
+17. Probar instalacion del ZIP en Blender.
+18. Actualizar documentacion minima de instalacion/uso/limitaciones.
+19. Actualizar plan y PCS segun resultado.
 
 ## Matriz De Validacion Manual Blender
 
@@ -278,7 +280,7 @@ Dejar el addon V2 en estado de paquete instalable para prueba real:
 
 ## Criterio De Termino
 
-La Fase 6 queda validada cuando:
+La Fase 7 queda validada cuando:
 
 - el addon se instala por ZIP limpio;
 - activar/desactivar/reactivar no produce errores;
@@ -312,13 +314,13 @@ spritesheet_frame_selector/
 
 ## Proximo Paso Despues De Esta Fase
 
-Si Fase 6 valida correctamente:
+Si Fase 7 valida correctamente:
 
 - preparar un commit/release interno;
-- decidir si se crea una Fase 7 de pulido UX o si el MVP queda listo para uso interno;
+- decidir si se crea una Fase 8 de pulido UX o si el MVP queda listo para uso interno;
 - no cerrar el proyecto ni archivar planes sin instruccion explicita del usuario.
 
-Si Fase 6 detecta defectos:
+Si Fase 7 detecta defectos:
 
-- corregir dentro de Fase 6 si son bugs de estabilidad/distribucion;
+- corregir dentro de Fase 7 si son bugs de estabilidad/distribucion;
 - crear subplan especifico si aparece una feature o rediseño mayor.

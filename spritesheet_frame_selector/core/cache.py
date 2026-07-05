@@ -7,7 +7,7 @@ import os
 from typing import Any
 
 
-CACHE_VERSION = "preview-cache-workspace-v1"
+CACHE_VERSION = "preview-cache-workspace-alpha-v2"
 
 
 def build_preview_cache_key(

@@ -59,6 +59,11 @@ def generate_viewport_previews(
     original_resolution_y = render.resolution_y
     original_percentage = render.resolution_percentage
     original_file_format = image_settings.file_format
+    original_color_mode = getattr(image_settings, "color_mode", None)
+    original_color_depth = getattr(image_settings, "color_depth", None)
+    original_compression = getattr(image_settings, "compression", None)
+    original_film_transparent = render.film_transparent
+    original_use_file_extension = render.use_file_extension
     original_camera = scene.camera
 
     frame_paths: dict[int, str] = {}
@@ -69,6 +74,11 @@ def generate_viewport_previews(
             render.resolution_y = clip.preview_size
             render.resolution_percentage = 100
             image_settings.file_format = "PNG"
+            image_settings.color_mode = "RGBA"
+            if original_color_depth is not None:
+                image_settings.color_depth = "8"
+            render.film_transparent = True
+            render.use_file_extension = True
 
             for frame_number in frame_numbers:
                 target_path = preview_file_path(cache_folder, frame_number)
@@ -85,6 +95,15 @@ def generate_viewport_previews(
                         frame_paths,
                         f"Preview generation failed for frame {frame_number}",
                     )
+                if preview_mode in {"SOLID", "MATERIAL"}:
+                    has_transparency = _preview_file_has_transparency(target_path)
+                    if has_transparency is False:
+                        _remove_file_if_exists(target_path)
+                        return PreviewGenerationResult(
+                            False,
+                            frame_paths,
+                            f"{preview_mode.title()} preview did not produce transparent alpha",
+                        )
     except Exception as exc:
         return PreviewGenerationResult(False, frame_paths, str(exc))
     finally:
@@ -95,6 +114,14 @@ def generate_viewport_previews(
         render.resolution_y = original_resolution_y
         render.resolution_percentage = original_percentage
         image_settings.file_format = original_file_format
+        if original_color_mode is not None:
+            image_settings.color_mode = original_color_mode
+        if original_color_depth is not None:
+            image_settings.color_depth = original_color_depth
+        if original_compression is not None:
+            image_settings.compression = original_compression
+        render.film_transparent = original_film_transparent
+        render.use_file_extension = original_use_file_extension
 
     return PreviewGenerationResult(True, frame_paths, f"{preview_mode.title()} preview cache generated")
 
@@ -201,3 +228,36 @@ def _write_render_thumbnail() -> bool:
     except RuntimeError:
         return False
     return "CANCELLED" not in result
+
+
+def _preview_file_has_transparency(path: str) -> bool | None:
+    images = getattr(getattr(bpy, "data", None), "images", None)
+    load = getattr(images, "load", None)
+    remove = getattr(images, "remove", None)
+    if load is None or remove is None:
+        return None
+
+    image = None
+    try:
+        image = load(path, check_existing=False)
+        channels = getattr(image, "channels", 0)
+        if channels < 4:
+            return False
+        pixels = getattr(image, "pixels", ())
+        return any(alpha < 0.999 for alpha in pixels[3::channels])
+    except Exception:
+        return None
+    finally:
+        if image is not None:
+            try:
+                remove(image)
+            except Exception:
+                pass
+
+
+def _remove_file_if_exists(path: str) -> None:
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+    except OSError:
+        pass

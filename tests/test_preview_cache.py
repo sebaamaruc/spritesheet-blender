@@ -1,6 +1,8 @@
 import unittest
 import tempfile
 import sys
+import os
+from contextlib import contextmanager
 from types import SimpleNamespace
 
 if "bpy" not in sys.modules:
@@ -293,6 +295,138 @@ class PreviewViewportContextTests(unittest.TestCase):
         self.assertTrue(context.override_used)
 
 
+class PreviewAlphaSettingsTests(unittest.TestCase):
+    def test_generate_previews_configures_alpha_png_and_restores_render_settings(self):
+        clip = fake_clip()
+        context = fake_preview_context()
+        camera = SimpleNamespace(users_collection=())
+        collection = SimpleNamespace(children=())
+        observed = {}
+        original_write_thumbnail = generator._write_thumbnail
+        original_visibility_scope = generator.collection_visibility_scope
+        try:
+            def fake_write_thumbnail(_context, preview_mode):
+                render = context.scene.render
+                image_settings = render.image_settings
+                observed["preview_mode"] = preview_mode
+                observed["file_format"] = image_settings.file_format
+                observed["color_mode"] = image_settings.color_mode
+                observed["color_depth"] = image_settings.color_depth
+                observed["film_transparent"] = render.film_transparent
+                observed["use_file_extension"] = render.use_file_extension
+                with open(render.filepath, "wb") as handle:
+                    handle.write(b"png")
+                return True
+
+            generator._write_thumbnail = fake_write_thumbnail
+            generator.collection_visibility_scope = fake_visibility_scope
+            with tempfile.TemporaryDirectory() as tmpdir:
+                result = generator.generate_viewport_previews(
+                    context,
+                    clip,
+                    camera,
+                    [collection],
+                    tmpdir,
+                    [1],
+                    preview_mode="RENDERED",
+                )
+        finally:
+            generator._write_thumbnail = original_write_thumbnail
+            generator.collection_visibility_scope = original_visibility_scope
+
+        self.assertTrue(result.success)
+        self.assertEqual(observed["preview_mode"], "RENDERED")
+        self.assertEqual(observed["file_format"], "PNG")
+        self.assertEqual(observed["color_mode"], "RGBA")
+        self.assertEqual(observed["color_depth"], "8")
+        self.assertTrue(observed["film_transparent"])
+        self.assertTrue(observed["use_file_extension"])
+        self.assertEqual(context.scene.frame_current, 7)
+        self.assertEqual(context.scene.camera, "original-camera")
+        self.assertEqual(context.scene.render.filepath, "/tmp/original")
+        self.assertEqual(context.scene.render.resolution_x, 1920)
+        self.assertEqual(context.scene.render.resolution_y, 1080)
+        self.assertEqual(context.scene.render.resolution_percentage, 50)
+        self.assertFalse(context.scene.render.film_transparent)
+        self.assertFalse(context.scene.render.use_file_extension)
+        self.assertEqual(context.scene.render.image_settings.file_format, "JPEG")
+        self.assertEqual(context.scene.render.image_settings.color_mode, "RGB")
+        self.assertEqual(context.scene.render.image_settings.color_depth, "16")
+        self.assertEqual(context.scene.render.image_settings.compression, 45)
+
+    def test_solid_preview_rejects_opaque_png_when_alpha_can_be_validated(self):
+        clip = fake_clip()
+        context = fake_preview_context()
+        camera = SimpleNamespace(users_collection=())
+        collection = SimpleNamespace(children=())
+        original_write_thumbnail = generator._write_thumbnail
+        original_visibility_scope = generator.collection_visibility_scope
+        original_has_transparency = generator._preview_file_has_transparency
+        try:
+            def fake_write_thumbnail(_context, _preview_mode):
+                with open(context.scene.render.filepath, "wb") as handle:
+                    handle.write(b"opaque")
+                return True
+
+            generator._write_thumbnail = fake_write_thumbnail
+            generator.collection_visibility_scope = fake_visibility_scope
+            generator._preview_file_has_transparency = lambda _path: False
+            with tempfile.TemporaryDirectory() as tmpdir:
+                result = generator.generate_viewport_previews(
+                    context,
+                    clip,
+                    camera,
+                    [collection],
+                    tmpdir,
+                    [1],
+                    preview_mode="SOLID",
+                )
+                generated_path = next(iter(result.frame_paths.values()))
+                file_exists = os.path.exists(generated_path)
+        finally:
+            generator._write_thumbnail = original_write_thumbnail
+            generator.collection_visibility_scope = original_visibility_scope
+            generator._preview_file_has_transparency = original_has_transparency
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.message, "Solid preview did not produce transparent alpha")
+        self.assertFalse(file_exists)
+
+    def test_preview_file_has_transparency_detects_alpha_values(self):
+        original_data = getattr(generator.bpy, "data", None)
+        try:
+            generator.bpy.data = SimpleNamespace(
+                images=FakeImages(
+                    SimpleNamespace(channels=4, pixels=[1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.25])
+                )
+            )
+
+            self.assertTrue(generator._preview_file_has_transparency("/tmp/frame.png"))
+        finally:
+            if original_data is None:
+                delattr(generator.bpy, "data")
+            else:
+                generator.bpy.data = original_data
+
+    def test_preview_file_has_transparency_rejects_opaque_or_rgb_images(self):
+        original_data = getattr(generator.bpy, "data", None)
+        try:
+            generator.bpy.data = SimpleNamespace(
+                images=FakeImages(SimpleNamespace(channels=4, pixels=[1.0, 1.0, 1.0, 1.0]))
+            )
+            self.assertFalse(generator._preview_file_has_transparency("/tmp/opaque.png"))
+
+            generator.bpy.data = SimpleNamespace(
+                images=FakeImages(SimpleNamespace(channels=3, pixels=[1.0, 1.0, 1.0]))
+            )
+            self.assertFalse(generator._preview_file_has_transparency("/tmp/rgb.png"))
+        finally:
+            if original_data is None:
+                delattr(generator.bpy, "data")
+            else:
+                generator.bpy.data = original_data
+
+
 class FakeOverrideContext:
     def __init__(self):
         self.override_used = False
@@ -328,6 +462,53 @@ def fake_view3d_area(regions=None):
         type="VIEW_3D",
         regions=regions if regions is not None else [SimpleNamespace(type="WINDOW")],
         spaces=FakeSpaces([space]),
+    )
+
+
+@contextmanager
+def fake_visibility_scope(_view_layer, _collections, _camera):
+    yield
+
+
+class FakeImages:
+    def __init__(self, image):
+        self.image = image
+        self.removed = None
+
+    def load(self, _path, check_existing=False):
+        return self.image
+
+    def remove(self, image):
+        self.removed = image
+
+
+class FakeScene:
+    def __init__(self):
+        self.frame_current = 7
+        self.camera = "original-camera"
+        self.render = SimpleNamespace(
+            filepath="/tmp/original",
+            resolution_x=1920,
+            resolution_y=1080,
+            resolution_percentage=50,
+            film_transparent=False,
+            use_file_extension=False,
+            image_settings=SimpleNamespace(
+                file_format="JPEG",
+                color_mode="RGB",
+                color_depth="16",
+                compression=45,
+            ),
+        )
+
+    def frame_set(self, frame_number):
+        self.frame_current = frame_number
+
+
+def fake_preview_context():
+    return SimpleNamespace(
+        scene=FakeScene(),
+        view_layer=SimpleNamespace(),
     )
 
 

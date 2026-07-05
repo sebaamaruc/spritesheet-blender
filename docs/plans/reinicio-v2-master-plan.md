@@ -55,7 +55,8 @@ Planes de fase previstos:
 - `docs/plans/reinicio-v2-fase-3-limpieza-arbol-activo.md`
 - `docs/plans/reinicio-v2-fase-4-scaffold-addon-v2.md`
 - `docs/plans/reinicio-v2-fase-5-vertical-slices.md`
-- `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`
+- `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`
+- `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`
 
 La Fase 5 debe dividirse en subplanes porque cada vertical slice afecta diseño, Blender API, pruebas y riesgos propios:
 
@@ -188,11 +189,35 @@ Criterio de termino:
 - no se agregan features fuera de `docs/specs/mvp_v2.md`;
 - playback preview y multi-clip no quedan como extensiones improvisadas.
 
-## Fase 6: Validacion Final Y Distribucion
+## Fase 6: Correcciones Auditoria Tecnica
+
+Objetivo: corregir o clasificar formalmente los hallazgos de la auditoria tecnica post-Fase 5 antes de preparar distribucion.
+
+Plan requerido: `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`.
+
+Debe cubrir:
+
+- selector modal y lifecycle runtime;
+- output correctness de previews/render/export;
+- decision explicita sobre render cache final;
+- rendimiento/memoria de composer/export;
+- validacion, registro y deuda tecnica detectada;
+- verificacion runtime de puntos no confirmados por la auditoria estatica.
+
+El plan de Fase 6 es rector. No debe ejecutarse como monolito si la correccion se beneficia de subplanes especificos.
+
+Criterio de termino:
+
+- todos los hallazgos C/A/M/B de `docs/technical-audit.md` estan corregidos, diferidos con razon o clasificados como no aplicables con evidencia;
+- los hallazgos criticos y altos no quedan diferidos salvo decision explicita del usuario;
+- las validaciones automaticas y runtime aplicables pasan o tienen limitacion documentada;
+- Fase 7 queda habilitada como validacion/distribucion final.
+
+## Fase 7: Validacion Final Y Distribucion
 
 Objetivo: preparar el addon V2 para uso distribuible.
 
-Plan requerido: `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`.
+Plan requerido: `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`.
 
 Debe cubrir:
 
@@ -220,4 +245,3 @@ Criterio de termino:
 Crear el plan especifico `docs/plans/reinicio-v2-fase-1-preservacion.md`.
 
 Ese plan debe ser detallado y decision-complete antes de ejecutar cualquier preservacion, tag, rama, commit o limpieza.
-

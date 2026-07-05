@@ -1,6 +1,6 @@
 # Handoff
 
-Ultima actualizacion: 2026-07-04
+Ultima actualizacion: 2026-07-05
 
 Hay handoff activo para continuar la planificacion del reinicio V2.
 
@@ -22,7 +22,7 @@ La Fase 2 fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-
 
 El MVP historico original fue preservado en `docs/archive/mvp-original.md`. `docs/specs/mvp.md` quedo como puntero historico/no operativo.
 
-La Fase 3 fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-3-limpieza-arbol-activo.md`. El addon V1, tests legacy, scratch y residuos locales fueron retirados del arbol activo. Las metas V1 de `docs/source/goals.md` y `docs/source/goals.proposed.md` fueron archivadas en `docs/archive/source-goals-v1.md` y `docs/archive/source-goals-proposed-v1.md`.
+La Fase 3 fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-3-limpieza-arbol-activo.md`. El addon V1, tests legacy, scratch y residuos locales fueron retirados del arbol activo. Las metas V1 de docs/source/goals.md y docs/source/goals.proposed.md fueron archivadas en `docs/archive/source-goals-v1.md` y `docs/archive/source-goals-proposed-v1.md`.
 
 La Fase 4 fue ejecutada, validada y archivada en `docs/archive/reinicio-v2-fase-4-scaffold-addon-v2.md`. Existe scaffold V2 minimo en `spritesheet_frame_selector/` con manifest, registro centralizado, preferencias, propiedad minima de escena y panel minimo. Validaron `compileall`, import/register/unregister con mock minimo de `bpy`, y Blender background real con Blender 5.1.1. Queda pendiente solo validacion manual GUI del panel.
 
@@ -94,6 +94,12 @@ Correccion aplicada tras validacion manual: se quito el boton/operador publico s
 
 Correccion UI/naming/atajos posterior aplicada: filenames de preview/render/export individual usan 3 digitos (`001`), `Preview Cache` se renombro a `Preview`, `Preview Size` paso a menu desplegable en Preview, Preview queda con solo `Generate Preview` y `Clear Cache`, Selector del panel ya no muestra Edit/Play, Export Settings quedo en orden Sheet/Folder/W-H-Columns/Sheet Size/Export Individual Frames/Export Spritesheet, las filas de workspaces/clips usan nombres editables nativos, y el selector visual soporta `Space`, `Tab` y `Shift + Left`.
 
-Plan propuesto creado: `docs/plans/reinicio-v2-fase-6-validacion-distribucion.md`.
+Plan propuesto anterior de validacion/distribucion movido a Fase 7: `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`.
 
-Proximo paso: revisar y aprobar Fase 6 antes de ejecutar validacion final, packaging e instalacion ZIP.
+Plan rector propuesto creado para correcciones de auditoria tecnica: `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`.
+
+La Fase 6 usa `docs/technical-audit.md` como fuente principal y no debe resumir ni acotar los hallazgos C/A/M/B. La Fase 7 queda diferida hasta que Fase 6 corrija o clasifique todos los hallazgos y valide los puntos runtime aplicables.
+
+Correccion al plan rector Fase 6: el plan no debe copiar toda la auditoria. Debe gobernar orden, dependencias y criterios. Cada subplan ejecutable debe ser explicito y autosuficiente: para cada hallazgo que cubra, debe incorporar problema, causa, impacto, solucion propuesta por auditoria, archivos/funciones afectados, interpretacion del subplan y validacion. No basta con decir "ver auditoria".
+
+Proximo paso: revisar y aprobar `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`. Si se aprueba, persistirlo como Plan Activo antes de crear el primer subplan ejecutable, recomendado como `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md`.

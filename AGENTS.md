@@ -95,7 +95,7 @@ Un agente ejecutor debe:
 
 Si el plan activo parece incorrecto, contradictorio o bloqueado, detenerse y registrar el bloqueo en `.context/handoff.md`. Cambiar un plan activo requiere instruccion explicita del usuario o de un agente planificador autorizado.
 
-## Reglas De Trabajo Para Agentes
+## Reglas Locales Criticas
 
 - No depender del historial del chat.
 - Reconstruir contexto desde archivos antes de trabajar.
@@ -183,3 +183,5 @@ Reglas obligatorias:
 - Si el agente solo implemento cambios, debe dejar el estado como `implementado` o `correcciones requeridas`, no como cerrado.
 - Si el agente valida cambios pero no actualiza PCS, debe dejar el estado como `validado` o `listo para cierre`, no como cerrado.
 - La Fase de Cierre PCS debe actualizar `.context/agent_context.md`, `.context/handoff.md` y `.context/worklog.jsonl` para reflejar el estado final.
+
+Si la tarea implica actualizar, validar, reparar o cerrar PCS, leer `docs/specs/pcs-agent-usage.md` antes de actuar.
