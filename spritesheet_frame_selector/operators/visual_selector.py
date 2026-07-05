@@ -56,13 +56,11 @@ class SPRITESHEET_OT_visual_selector_open(bpy.types.Operator):
         result = handle_visual_selector_event(context, event)
         if result is not None:
             return result
-        return {"RUNNING_MODAL"}
+        return {"RUNNING_MODAL", "PASS_THROUGH"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        if bpy.app.background:
-            self.report({"WARNING"}, "Visual selector requires a 3D Viewport UI context")
-            return {"CANCELLED"}
-        return {"FINISHED"}
+        self.report({"WARNING"}, "Visual selector must be opened from a 3D Viewport invoke context")
+        return {"CANCELLED"}
 
 
 class SPRITESHEET_OT_visual_selector_set_mode(bpy.types.Operator):

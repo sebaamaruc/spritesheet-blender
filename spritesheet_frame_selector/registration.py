@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import bpy
+from bpy.app.handlers import persistent
 
 from .operators.clips import (
     SPRITESHEET_OT_clip_add,
@@ -103,6 +104,12 @@ CLASSES = (
 _registered_classes: list[type] = []
 
 
+@persistent
+def _cleanup_runtime_sessions_on_load(_dummy: object) -> None:
+    cleanup_playback_resources()
+    cleanup_visual_selector_resources()
+
+
 def _register_scene_properties() -> None:
     if not hasattr(bpy.types.Scene, "spritesheet_state"):
         bpy.types.Scene.spritesheet_state = bpy.props.PointerProperty(type=SpriteSheetSceneState)
@@ -113,8 +120,19 @@ def _unregister_scene_properties() -> None:
         del bpy.types.Scene.spritesheet_state
 
 
+def _register_file_load_handler() -> None:
+    if _cleanup_runtime_sessions_on_load not in bpy.app.handlers.load_pre:
+        bpy.app.handlers.load_pre.append(_cleanup_runtime_sessions_on_load)
+
+
+def _unregister_file_load_handler() -> None:
+    if _cleanup_runtime_sessions_on_load in bpy.app.handlers.load_pre:
+        bpy.app.handlers.load_pre.remove(_cleanup_runtime_sessions_on_load)
+
+
 def register() -> None:
     """Register classes and scene properties defensively."""
+    _register_file_load_handler()
     for cls in CLASSES:
         if cls in _registered_classes:
             continue
@@ -131,6 +149,7 @@ def register() -> None:
 
 def unregister() -> None:
     """Unregister scene properties and classes in reverse order."""
+    _unregister_file_load_handler()
     cleanup_playback_resources()
     cleanup_visual_selector_resources()
     _unregister_scene_properties()

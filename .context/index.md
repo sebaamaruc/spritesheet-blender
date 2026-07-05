@@ -26,23 +26,29 @@ Leer siempre:
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
 | `docs/plans/reinicio-v2-master-plan.md` | Siempre antes de planificar o ejecutar cualquier trabajo del reinicio V2 | aprobado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md` | Plan rector activo para corregir o clasificar todos los hallazgos de `docs/technical-audit.md` antes de Fase 7 | aprobado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md` | Plan activo implementado para C1, C2 y B5; requiere validacion Blender antes de cerrar hito 1 | aprobado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md` | Plan implementado para M6 scroll del selector visual; requiere validacion Blender GUI | aprobado | vigente | alta |
 
 ## Planes Derivados Pendientes
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
-| `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md` | Revisar y aprobar antes de corregir los hallazgos de `docs/technical-audit.md` | propuesto | vigente | alta |
 | `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md` | Revisar y aprobar despues de validar Fase 6, antes de packaging e instalacion ZIP | propuesto | diferido | alta |
 
 ## Planes Derivados Implementados Pendientes De Validacion
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
+| `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md` | Validar en Blender antes de continuar con hitos 2/3 de Fase 6a | implementado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md` | Completar validaciones GUI V2-V5; automaticas/background ya pasaron | implementado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md` | Validar en Blender GUI scroll dentro del selector y PASS_THROUGH fuera del panel | implementado | vigente | alta |
 
 ## Planes Derivados Validados
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
+| `docs/plans/reinicio-v2-fase-6b0-preview-camera-viewport.md` | Correccion runtime validada: Generate Preview usa la camara efectiva aunque el viewport no este en Camera View | validado | vigente | alta |
 
 ## Especificaciones
 

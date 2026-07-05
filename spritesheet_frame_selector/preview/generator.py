@@ -27,6 +27,7 @@ class ViewportRenderContext:
     area: Any
     region: Any
     space: Any
+    region_3d: Any
 
 
 def generate_viewport_previews(
@@ -145,11 +146,18 @@ def _write_viewport_thumbnail(
     preview_mode: str,
 ) -> bool:
     space = viewport_context.space
+    region_3d = viewport_context.region_3d
+    if region_3d is None:
+        raise RuntimeError(f"{preview_mode.title()} preview requires a 3D Viewport with RegionView3D")
+
     shading = getattr(space, "shading", None)
     overlay = getattr(space, "overlay", None)
+    original_view_perspective = getattr(region_3d, "view_perspective", None)
     original_shading_type = getattr(shading, "type", None)
     original_overlay = getattr(overlay, "show_overlays", None)
     try:
+        if original_view_perspective is not None:
+            region_3d.view_perspective = "CAMERA"
         if shading is not None:
             shading.type = preview_mode
         if overlay is not None and original_overlay is not None:
@@ -165,6 +173,8 @@ def _write_viewport_thumbnail(
     except RuntimeError:
         return False
     finally:
+        if original_view_perspective is not None:
+            region_3d.view_perspective = original_view_perspective
         if shading is not None and original_shading_type is not None:
             shading.type = original_shading_type
         if overlay is not None and original_overlay is not None:
@@ -219,6 +229,7 @@ def _viewport_context_from_area(context: bpy.types.Context, area: Any) -> Viewpo
         area=area,
         region=region,
         space=active_space,
+        region_3d=getattr(active_space, "region_3d", None),
     )
 
 

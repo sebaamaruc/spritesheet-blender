@@ -81,6 +81,9 @@ class VisualSelectorSession:
         self.images: dict[str, bpy.types.Image] = {}
         self.checkerboard_layout: CheckerboardLayout | None = None
         self.rect_shader: Any | None = None
+        self.grid_offset = 0
+        self.grid_columns = 1
+        self.grid_max_visible = 1
 
     def open(self) -> None:
         self.draw_handler = bpy.types.SpaceView3D.draw_handler_add(
@@ -104,6 +107,12 @@ class VisualSelectorSession:
         _tag_redraw(self.area)
 
     def draw(self) -> None:
+        try:
+            self._draw()
+        except ReferenceError:
+            cleanup_visual_selector_resources()
+
+    def _draw(self) -> None:
         try:
             import blf
             import gpu
@@ -171,18 +180,21 @@ class VisualSelectorSession:
         columns = max(1, int((panel.width - margin * 2 + gap) // (cell_size + gap)))
         rows = max(1, int((grid_height + gap) // (cell_size + gap)))
         max_visible = max(1, columns * rows)
+        self.grid_columns = columns
+        self.grid_max_visible = max_visible
+        self.grid_offset = clamp_grid_offset(self.grid_offset, len(clip.frames), max_visible)
         x = panel.x + margin
         y = grid_top - cell_size
         session_matches = active_session_matches(workspace.id, clip.id)
         active_frame_number = current_frame_number() if session_matches else current_number
 
-        visible_frames = list(clip.frames[:max_visible])
+        visible_entries = visible_frame_window(clip.frames, self.grid_offset, max_visible)
         frame_rects: list[Rect] = []
-        for index, _frame in enumerate(visible_frames):
+        for visible_index, _real_index, _frame in visible_entries:
             rect = Rect(x, y, cell_size, cell_size)
             frame_rects.append(rect)
             x += cell_size + gap
-            if (index + 1) % columns == 0:
+            if (visible_index + 1) % columns == 0:
                 x = panel.x + margin
                 y -= cell_size + gap
 
@@ -208,9 +220,9 @@ class VisualSelectorSession:
 
         self._draw_controls(blf, gpu, batch_for_shader, controls, workspace)
 
-        for index, frame in enumerate(visible_frames):
-            rect = frame_rects[index]
-            self.frame_cells.append(FrameCell(index, rect))
+        for visible_index, real_index, frame in visible_entries:
+            rect = frame_rects[visible_index]
+            self.frame_cells.append(FrameCell(real_index, rect))
             _draw_preview_image(gpu, batch_for_shader, self, frame.preview_path, rect)
             _draw_text(blf, rect.x + 6, rect.y + 6, str(frame.frame_number), 11)
             if frame.selected:
@@ -218,11 +230,13 @@ class VisualSelectorSession:
             if frame.frame_number == active_frame_number:
                 _draw_outline(gpu, batch_for_shader, _inset_rect(rect, 4), CURRENT_COLOR, 3)
         if len(clip.frames) > max_visible:
+            first = self.grid_offset + 1
+            last = min(len(clip.frames), self.grid_offset + max_visible)
             _draw_text(
                 blf,
                 panel.x + margin,
                 panel.y + 6,
-                f"Showing {max_visible} / {len(clip.frames)} frames",
+                f"Showing {first}-{last} / {len(clip.frames)} frames",
                 11,
                 MUTED_COLOR,
             )
@@ -313,9 +327,14 @@ def cleanup_visual_selector_resources() -> None:
 def handle_visual_selector_event(context: bpy.types.Context, event: bpy.types.Event) -> set[str] | None:
     if _session is None:
         return {"CANCELLED"}
+    if not _session_matches_context(context):
+        cleanup_visual_selector_resources()
+        return {"CANCELLED"}
     if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
         cleanup_visual_selector_resources()
         return {"CANCELLED"}
+    if _event_has_modifier(event):
+        return {"RUNNING_MODAL", "PASS_THROUGH"}
     if event.type == "SPACE" and event.value == "PRESS":
         _handle_space_playback(context)
         _tag_redraw(context.area)
@@ -329,12 +348,22 @@ def handle_visual_selector_event(context: bpy.types.Context, event: bpy.types.Ev
         _tag_redraw(context.area)
         return {"RUNNING_MODAL"}
     if event.type == "LEFTMOUSE" and event.value == "PRESS":
+        if not _event_inside_panel(event):
+            return {"RUNNING_MODAL", "PASS_THROUGH"}
         _handle_click(context, event.mouse_region_x, event.mouse_region_y)
+        _tag_redraw(context.area)
+        return {"RUNNING_MODAL"}
+    if event.type in {"WHEELUPMOUSE", "WHEELDOWNMOUSE", "TRACKPADPAN"}:
+        if not _event_inside_panel(event):
+            return {"RUNNING_MODAL", "PASS_THROUGH"}
+        _scroll_frame_grid(event)
         _tag_redraw(context.area)
         return {"RUNNING_MODAL"}
     if event.type == "TIMER":
         _tag_redraw(context.area)
         return {"RUNNING_MODAL"}
+    if _event_should_pass_through(event):
+        return {"RUNNING_MODAL", "PASS_THROUGH"}
     return None
 
 
@@ -355,6 +384,108 @@ def active_workspace_clip_readonly(context: bpy.types.Context) -> tuple[Any | No
 
 def effective_preview_label(workspace: Any, clip: Any) -> str:
     return getattr(clip, "preview_mode", "SOLID")
+
+
+def _session_matches_context(context: bpy.types.Context) -> bool:
+    if _session is None:
+        return False
+    workspace, clip = active_workspace_clip_readonly(context)
+    return (
+        workspace is not None
+        and clip is not None
+        and workspace.id == _session.workspace_id
+        and clip.id == _session.clip_id
+    )
+
+
+def _event_inside_panel(event: bpy.types.Event) -> bool:
+    if _session is None:
+        return False
+    region_width = _session.region.width if _session.region is not None else 1200
+    region_height = _session.region.height if _session.region is not None else 800
+    panel = _selector_panel_rect(region_width, region_height, _session.area)
+    return panel.contains(event.mouse_region_x, event.mouse_region_y)
+
+
+def _event_should_pass_through(event: bpy.types.Event) -> bool:
+    if _event_has_modifier(event):
+        return True
+    if event.type in {
+        "MIDDLEMOUSE",
+        "WHEELUPMOUSE",
+        "WHEELDOWNMOUSE",
+        "WHEELINMOUSE",
+        "WHEELOUTMOUSE",
+        "TRACKPADPAN",
+        "TRACKPADZOOM",
+        "NDOF_MOTION",
+    }:
+        return True
+    return False
+
+
+def _event_has_modifier(event: bpy.types.Event) -> bool:
+    return bool(getattr(event, "alt", False) or getattr(event, "ctrl", False) or getattr(event, "oskey", False))
+
+
+def clamp_grid_offset(offset: int, total_frames: int, max_visible: int) -> int:
+    max_start = max(0, total_frames - max(1, max_visible))
+    return max(0, min(int(offset), max_start))
+
+
+def scrolled_grid_offset(offset: int, direction: int, total_frames: int, max_visible: int, columns: int) -> int:
+    step = max(1, columns)
+    if direction > 0:
+        offset += step
+    elif direction < 0:
+        offset -= step
+    return clamp_grid_offset(offset, total_frames, max_visible)
+
+
+def scroll_direction_from_event(event: Any) -> int:
+    event_type = getattr(event, "type", "")
+    if event_type == "WHEELDOWNMOUSE":
+        return 1
+    if event_type == "WHEELUPMOUSE":
+        return -1
+    if event_type == "TRACKPADPAN":
+        current_y = getattr(event, "mouse_y", None)
+        previous_y = getattr(event, "mouse_prev_y", None)
+        if current_y is None or previous_y is None:
+            return 0
+        delta_y = current_y - previous_y
+        if delta_y < 0:
+            return 1
+        if delta_y > 0:
+            return -1
+    return 0
+
+
+def visible_frame_window(frames: Any, offset: int, max_visible: int) -> list[tuple[int, int, Any]]:
+    clamped = clamp_grid_offset(offset, len(frames), max_visible)
+    end = min(len(frames), clamped + max(1, max_visible))
+    return [
+        (visible_index, real_index, frames[real_index])
+        for visible_index, real_index in enumerate(range(clamped, end))
+    ]
+
+
+def _scroll_frame_grid(event: bpy.types.Event) -> None:
+    if _session is None:
+        return
+    _workspace, clip = active_workspace_clip_readonly(bpy.context)
+    if clip is None:
+        return
+    direction = scroll_direction_from_event(event)
+    if direction == 0:
+        return
+    _session.grid_offset = scrolled_grid_offset(
+        _session.grid_offset,
+        direction,
+        len(clip.frames),
+        _session.grid_max_visible,
+        _session.grid_columns,
+    )
 
 
 def _handle_click(context: bpy.types.Context, x: float, y: float) -> None:

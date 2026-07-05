@@ -13,11 +13,11 @@ El plan gobernante aprobado es `docs/plans/reinicio-v2-master-plan.md`. Este mas
 
 ## Tarea Activa
 
-Revisar y aprobar el plan rector propuesto de Fase 6 correcciones de auditoria tecnica.
+Validar en Blender GUI el plan `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md`, implementado para corregir M6: thumbnails ocultos sin scroll en el selector visual.
 
 ## Proximo Paso Recomendado
 
-Revisar `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`. Si el usuario lo aprueba, persistirlo como plan activo aprobado antes de crear o ejecutar subplanes.
+Ejecutar en Blender GUI la validacion de scroll: abrir un clip con mas frames que celdas visibles, usar rueda dentro del panel para ver frames posteriores, confirmar que el click/toggle afecta el frame correcto y que la rueda fuera del panel sigue pasando al viewport. Despues resolver V5 de `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md`.
 
 ## Estado
 
@@ -46,7 +46,11 @@ Revisar `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`. Si el
 - Fase 5g export spritesheet y JSON: validada por usuario, incluidas correcciones UI/naming/atajos
 - Subplanes implementados de Fase 5: archivados en `docs/archive/`
 - Auditoria tecnica post-Fase 5: fuente vigente para Fase 6
-- Fase 6 correcciones de auditoria tecnica: plan rector propuesto
+- Fase 6 correcciones de auditoria tecnica: plan rector aprobado; D1 y D2 confirmadas por el usuario
+- Fase 6a selector modal y lifecycle runtime: hito 1 implementado para C1, C2 y B5; validacion Blender pendiente
+- Fase 6a validacion hito 1 selector modal/lifecycle: validaciones automaticas y Blender background pasadas; validacion GUI V2-V5 pendiente
+- Fase 6a hito 3 selector scroll: implementado para M6; validacion Blender GUI pendiente
+- Fase 6b0 preview desde camara efectiva: validada por el usuario
 - Fase 7 validacion final y distribucion: plan propuesto, diferido hasta validar Fase 6
 - Ejecucion de reinicio V2: pendiente de planes especificos por fase
 
@@ -60,6 +64,10 @@ Revisar `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`. Si el
 - `docs/plans/reinicio-v2-master-plan.md`
 - `docs/technical-audit.md`
 - `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`
+- `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md`
+- `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md`
+- `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md`
+- `docs/plans/reinicio-v2-fase-6b0-preview-camera-viewport.md`
 - `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`
 - `docs/archive/reinicio-v2-fase-1-preservacion.md`
 - `docs/archive/reinicio-v2-fase-2-documentacion-base.md`
@@ -107,7 +115,7 @@ Revisar `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`. Si el
 
 ## Plan Activo
 
-Ninguno.
+`docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md`
 
 ## Decisiones Vigentes Relevantes
 
@@ -128,6 +136,9 @@ Ninguno.
 - DEC-0008: preview/render/export deben resolver camara y collections efectivas desde workspace + clip.
 - DEC-0009: rehacer Fase 5 desde scaffold para workspace-root.
 - DEC-0010: antes de render final se debe corregir selector/playback con superficie modal/custom, `selector_mode` persistente y preview modes persistentes.
+- Fase 6 D1: eliminar el subsistema de render cache final para MVP.
+- Fase 6 D2: prohibir frames negativos en MVP agregando `min=0` a `frame_start`/`frame_end`.
+- Fase 6b0: previews `SOLID`/`MATERIAL` deben forzar temporalmente Camera View del `VIEW_3D` usado por `render.opengl(view_context=True)` para respetar la camara efectiva sin perder el shading de viewport.
 
 ## Riesgos Abiertos
 
@@ -142,4 +153,5 @@ Ninguno detectado para ejecutar la auditoria workspace-root.
 
 ## Validaciones Pendientes
 
-- Revisar/aprobar `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`.
+- Validar en Blender GUI `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md`.
+- Resolver V5 de `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md`.

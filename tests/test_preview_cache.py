@@ -269,6 +269,7 @@ class PreviewViewportContextTests(unittest.TestCase):
             area=view_area,
             region=view_area.regions[0],
             space=view_area.spaces.active,
+            region_3d=view_area.spaces.active.region_3d,
         )
         original_opengl = generator.bpy.ops.render.opengl
         observed = {}
@@ -276,6 +277,7 @@ class PreviewViewportContextTests(unittest.TestCase):
             def fake_opengl(**kwargs):
                 observed["shading_type"] = view_area.spaces.active.shading.type
                 observed["show_overlays"] = view_area.spaces.active.overlay.show_overlays
+                observed["view_perspective"] = view_area.spaces.active.region_3d.view_perspective
                 observed["kwargs"] = kwargs
                 return {"FINISHED"}
 
@@ -288,11 +290,28 @@ class PreviewViewportContextTests(unittest.TestCase):
         self.assertTrue(result)
         self.assertEqual(observed["shading_type"], "MATERIAL")
         self.assertFalse(observed["show_overlays"])
+        self.assertEqual(observed["view_perspective"], "CAMERA")
         self.assertTrue(observed["kwargs"]["write_still"])
         self.assertTrue(observed["kwargs"]["view_context"])
         self.assertEqual(view_area.spaces.active.shading.type, "SOLID")
         self.assertTrue(view_area.spaces.active.overlay.show_overlays)
+        self.assertEqual(view_area.spaces.active.region_3d.view_perspective, "PERSP")
         self.assertTrue(context.override_used)
+
+    def test_viewport_thumbnail_requires_region_3d(self):
+        view_area = fake_view3d_area(region_3d=None)
+        context = FakeOverrideContext()
+        viewport_context = generator.ViewportRenderContext(
+            window=SimpleNamespace(),
+            screen=SimpleNamespace(),
+            area=view_area,
+            region=view_area.regions[0],
+            space=view_area.spaces.active,
+            region_3d=None,
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "requires a 3D Viewport with RegionView3D"):
+            generator._write_viewport_thumbnail(context, viewport_context, "SOLID")
 
 
 class PreviewAlphaSettingsTests(unittest.TestCase):
@@ -452,11 +471,17 @@ def fake_area(area_type):
     return SimpleNamespace(type=area_type, regions=[], spaces=FakeSpaces())
 
 
-def fake_view3d_area(regions=None):
+_DEFAULT_REGION_3D = object()
+
+
+def fake_view3d_area(regions=None, region_3d=_DEFAULT_REGION_3D):
+    if region_3d is _DEFAULT_REGION_3D:
+        region_3d = SimpleNamespace(view_perspective="PERSP")
     space = SimpleNamespace(
         type="VIEW_3D",
         shading=SimpleNamespace(type="SOLID"),
         overlay=SimpleNamespace(show_overlays=True),
+        region_3d=region_3d,
     )
     return SimpleNamespace(
         type="VIEW_3D",

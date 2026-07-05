@@ -96,10 +96,42 @@ Correccion UI/naming/atajos posterior aplicada: filenames de preview/render/expo
 
 Plan propuesto anterior de validacion/distribucion movido a Fase 7: `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`.
 
-Plan rector propuesto creado para correcciones de auditoria tecnica: `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`.
+Plan rector aprobado para correcciones de auditoria tecnica: `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`.
 
 La Fase 6 usa `docs/technical-audit.md` como fuente principal y no debe resumir ni acotar los hallazgos C/A/M/B. La Fase 7 queda diferida hasta que Fase 6 corrija o clasifique todos los hallazgos y valide los puntos runtime aplicables.
 
 Correccion al plan rector Fase 6: el plan no debe copiar toda la auditoria. Debe gobernar orden, dependencias y criterios. Cada subplan ejecutable debe ser explicito y autosuficiente: para cada hallazgo que cubra, debe incorporar problema, causa, impacto, solucion propuesta por auditoria, archivos/funciones afectados, interpretacion del subplan y validacion. No basta con decir "ver auditoria".
 
-Proximo paso: revisar y aprobar `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`. Si se aprueba, persistirlo como Plan Activo antes de crear el primer subplan ejecutable, recomendado como `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md`.
+El usuario confirmo D1 y D2 al aprobar el plan: para MVP se elimina el subsistema de render cache final y se prohiben frames negativos agregando `min=0` a `frame_start`/`frame_end`.
+
+Subplan `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md` implementado por instruccion explicita del usuario. Cubre solo el hito 1 bloqueante de Fase 6a: C1, C2 y B5. No implementa M3, M6, M9, M10, B6 restante, B7 ni B10.
+
+Cambios implementados: modal del selector devuelve `PASS_THROUGH` para eventos no manejados; clicks fuera del panel y navegacion/modificadores pasan a Blender; cada evento cancela y limpia si workspace/clip activo ya no coincide; `draw()` limpia ante `ReferenceError`; `registration.py` registra/desregistra un handler persistente `load_pre` que limpia playback y selector; `execute()` del operador visual devuelve `CANCELLED` con reporte en vez de exito falso.
+
+Validaciones automaticas ejecutadas: `python3 -m compileall spritesheet_frame_selector`, `python3 -m unittest discover -s tests` (65 tests), y busquedas `rg` de `PASS_THROUGH`, `load_pre`, cleanup y `execute()`.
+
+Proximo paso: validar en Blender `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md`. Debe verificarse navegacion fuera del panel, acciones dentro del panel, cambio de workspace/clip con selector abierto, carga de otro `.blend` y reactivacion del addon sin duplicar `load_pre`. No avanzar a hitos 2/3 de Fase 6a hasta validar este hito 1 o registrar correcciones requeridas.
+
+Plan de validacion `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md` aprobado/ejecutado por instruccion explicita del usuario. No reemplaza el hito 1 implementado ni habilita hitos 2/3.
+
+Resultados: V1 paso (`compileall`, 65 tests, `rg` de contrato). Blender background dentro del sandbox crashea antes de Python con exit code 139; fuera del sandbox pasaron V6/V7 (`SFS_6A_HITO1_BACKGROUND_OK`), logica C1 con sesion simulada (`SFS_6A_HITO1_EVENT_LOGIC_OK`) y cleanup C2 ante `ReferenceError` (`SFS_6A_HITO1_DRAW_REFERENCEERROR_OK`). La prueba GUI inicial detecto un bug real: devolver solo `PASS_THROUGH` cerraba/desactivaba el overlay tras evento fuera del panel. Se corrigio a `{"RUNNING_MODAL", "PASS_THROUGH"}` y se repitieron validaciones automaticas/background con exito.
+
+Pendiente: V2-V5 requieren Blender GUI real estable: abrir selector en `VIEW_3D`, navegar fuera del panel, accionar dentro del panel, cambiar workspace/clip con selector abierto y cargar otro `.blend` con selector abierto. En el segundo intento GUI el selector abrio con la correccion, pero la ventana quedo blanca/inestable al manipular el splash; no marcar hito 1 como `validado` ni crear hito 2/3 hasta completar esas pruebas o registrar correcciones requeridas.
+
+Plan 6b0 `docs/plans/reinicio-v2-fase-6b0-preview-camera-viewport.md` fue creado, implementado y validado por el usuario para corregir un bug runtime no contemplado explicitamente por `docs/technical-audit.md`: `Generate Preview` en `SOLID`/`MATERIAL` generaba thumbnails desde la vista libre del viewport si el usuario no habia entrado manualmente a Camera View, haciendo que el objeto saliera muy pequeno.
+
+Diagnostico confirmado: `bpy.ops.render.opengl(write_still=True, view_context=True)` usa el viewport 3D actual. La correccion mantiene `view_context=True` para preservar shading `SOLID`/`MATERIAL`, pero fuerza temporalmente `region_3d.view_perspective = "CAMERA"` durante el render OpenGL y restaura perspectiva, shading y overlays con `try/finally`.
+
+Validaciones de 6b0: `python3 -m compileall spritesheet_frame_selector` paso; `python3 -m unittest discover -s tests` paso con 66 tests; validacion Blender GUI confirmada por el usuario.
+
+Pendiente operativo inmediato: retomar V2-V5 del plan `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md`. No crear hito 2/3 hasta completar esas pruebas o registrar correcciones requeridas.
+
+Actualizacion de validacion GUI reportada por el usuario: V2 funciona; en V3 el selector funciona y el usuario considera correcto que acciones/clicks fuera del selector no operen mientras el selector esta abierto; en V4 no se puede cambiar workspace o clip con selector abierto y el usuario lo considera correcto. V5 sigue pendiente. Para V5, abrir el selector y luego usar `File > Open...` o `File > New` para cargar otro archivo/escena sin cerrar manualmente el selector; confirmar que no quedan overlay fantasma, timers/playback vivos ni spam de consola.
+
+Bug nuevo durante validacion: si los thumbnails superan la capacidad visible, quedan ocultos e inaccesibles. Esto coincide con M6 de `docs/technical-audit.md`. El usuario pidio implementar `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md`; el plan fue aprobado por instruccion del usuario e implementado.
+
+Implementacion M6: `VisualSelectorSession` guarda `grid_offset`, `grid_columns` y `grid_max_visible`; el grid dibuja una ventana desplazable; `FrameCell.index` apunta al indice real en `clip.frames`; rueda y trackpad dentro del panel desplazan una fila; rueda/trackpad fuera del panel conservan `RUNNING_MODAL + PASS_THROUGH`; el status muestra `Showing A-B / N frames`. Validaciones automaticas pasaron: `python3 -m compileall spritesheet_frame_selector` y `python3 -m unittest discover -s tests` con 70 tests.
+
+Correccion posterior: el primer intento no funcionaba con trackpad porque solo manejaba `WHEELUPMOUSE/WHEELDOWNMOUSE` con `value == "PRESS"` y dejaba `TRACKPADPAN` como passthrough. Se corrigio `TRACKPADPAN` usando `mouse_y - mouse_prev_y`.
+
+Pendiente operativo inmediato: validar M6 en Blender GUI con un clip mas largo que la grilla visible. Confirmar trackpad dentro del panel, click/toggle sobre frames inicialmente ocultos y trackpad/rueda fuera del panel pasando al viewport. Luego resolver V5 del plan `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md`.
