@@ -6,22 +6,16 @@ import uuid
 
 import bpy
 
+from ..core.context import active_workspace
 from ..core.frame_math import frame_numbers
 from ..core.frame_sync import sync_clip_frames
 from ..core.workspace_state import (
     active_clip_or_none,
-    active_workspace_or_none,
     clamp_active_clip_index,
     duplicate_clip_data,
     move_item,
     next_item_name,
 )
-
-
-def _active_workspace(context: bpy.types.Context) -> bpy.types.PropertyGroup | None:
-    scene = getattr(context, "scene", None)
-    state = getattr(scene, "spritesheet_state", None) if scene is not None else None
-    return active_workspace_or_none(state) if state is not None else None
 
 
 class SPRITESHEET_OT_clip_add(bpy.types.Operator):
@@ -30,7 +24,7 @@ class SPRITESHEET_OT_clip_add(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        workspace = _active_workspace(context)
+        workspace = active_workspace(context)
         if workspace is None:
             self.report({"WARNING"}, "No active workspace")
             return {"CANCELLED"}
@@ -56,7 +50,7 @@ class SPRITESHEET_OT_clip_remove(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        workspace = _active_workspace(context)
+        workspace = active_workspace(context)
         if workspace is None:
             self.report({"WARNING"}, "No active workspace")
             return {"CANCELLED"}
@@ -80,7 +74,7 @@ class SPRITESHEET_OT_clip_duplicate(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        workspace = _active_workspace(context)
+        workspace = active_workspace(context)
         if workspace is None:
             self.report({"WARNING"}, "No active workspace")
             return {"CANCELLED"}
@@ -106,7 +100,7 @@ class SPRITESHEET_OT_clip_select(bpy.types.Operator):
     index: bpy.props.IntProperty(name="Index", default=-1)
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        workspace = _active_workspace(context)
+        workspace = active_workspace(context)
         if workspace is None:
             self.report({"WARNING"}, "No active workspace")
             return {"CANCELLED"}
@@ -131,7 +125,7 @@ class SPRITESHEET_OT_clip_move(bpy.types.Operator):
     )
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        workspace = _active_workspace(context)
+        workspace = active_workspace(context)
         if workspace is None:
             self.report({"WARNING"}, "No active workspace")
             return {"CANCELLED"}
@@ -151,7 +145,7 @@ class SPRITESHEET_OT_clip_included_collection_add(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        workspace = _active_workspace(context)
+        workspace = active_workspace(context)
         clip = active_clip_or_none(workspace) if workspace is not None else None
         if clip is None:
             self.report({"WARNING"}, "No active clip")
@@ -170,7 +164,7 @@ class SPRITESHEET_OT_clip_included_collection_remove(bpy.types.Operator):
     index: bpy.props.IntProperty(name="Index", default=-1)
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        workspace = _active_workspace(context)
+        workspace = active_workspace(context)
         clip = active_clip_or_none(workspace) if workspace is not None else None
         if clip is None:
             self.report({"WARNING"}, "No active clip")

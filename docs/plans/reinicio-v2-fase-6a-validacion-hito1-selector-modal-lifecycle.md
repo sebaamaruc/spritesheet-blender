@@ -3,7 +3,7 @@
 Estado: aprobado
 Autoridad: usuario
 Modo de ejecucion: ejecutar sin replanificar
-Estado De Ejecucion: implementado
+Estado De Ejecucion: validado
 
 ## Referencia Superior
 
@@ -25,8 +25,8 @@ Este plan no implementa funcionalidades nuevas. Su funcion es confirmar que las 
 
 | ID | Severidad | Titulo | Estado En Este Plan |
 |---|---|---|---|
-| C1 | critico | El selector visual bloquea toda la UI de Blender y puede quedar "invisible" pero activo | correccion ajustada tras prueba GUI; validacion background de logica pasada; validacion GUI real pendiente |
-| C2 | critico | Fuga del draw handler y de recursos al terminar el modal sin pasar por cleanup | validacion background de `load_pre`/`ReferenceError` pasada; validacion GUI real pendiente |
+| C1 | critico | El selector visual bloquea toda la UI de Blender y puede quedar "invisible" pero activo | validado; bloqueo de UI externa aceptado como contrato modal visible/intencional |
+| C2 | critico | Fuga del draw handler y de recursos al terminar el modal sin pasar por cleanup | validado; `load_pre`/`ReferenceError` cubren rutas no normales y V5 GUI por menu no aplica bajo contrato modal |
 | B5 | bajo | `SPRITESHEET_OT_visual_selector_open.execute()` devuelve `FINISHED` sin hacer nada cuando no es background | validado en Blender background |
 
 ## Extracto Operativo De Auditoria
@@ -192,7 +192,8 @@ Criterio de aceptacion:
 Resultado:
 
 - Parcial pasado en Blender background: `register()` instala un handler persistente `load_pre` que cubre cleanup de selector/playback; `VisualSelectorSession.draw()` limpia la sesion ante `ReferenceError`.
-- Pendiente: cargar otro `.blend` con selector abierto en Blender GUI y confirmar ausencia de overlay fantasma, timers vivos y spam de consola. Procedimiento recomendado: crear o abrir un `.blend` temporal de prueba, abrir el selector, usar `File > Open...` o `File > New` sin cerrar manualmente el selector y confirmar que el nuevo archivo no conserva overlay/timer/errores del selector anterior.
+- Re-clasificacion recomendada tras validacion GUI del usuario: con el selector abierto no se puede usar `File > Open...`, `File > New` ni otros controles fuera del selector. Esto es coherente con un selector modal intencional y no se considera bug por si mismo. La validacion GUI de "cargar otro `.blend` usando menu" no es un flujo accesible mientras el modal esta abierto.
+- Cobertura mantenida para C2: las rutas donde Blender termina/cancela el modal sin pasar por eventos normales quedan cubiertas por `load_pre` y por el autocierre ante `ReferenceError`, ambas validadas en background. Si en el futuro se decide permitir UI externa mientras el selector esta abierto, V5 debe reabrirse como prueba GUI real de carga con selector activo.
 
 ### V6 - C2: Registro/Desregistro
 
@@ -239,12 +240,12 @@ Resultado:
 - Blender background fuera del sandbox - pasado para V6/V7 con marcador `SFS_6A_HITO1_BACKGROUND_OK`.
 - Blender background fuera del sandbox - pasado para logica C1 con marcador `SFS_6A_HITO1_EVENT_LOGIC_OK`.
 - Blender background fuera del sandbox - pasado para C2 `ReferenceError` con marcador `SFS_6A_HITO1_DRAW_REFERENCEERROR_OK`.
-- Blender GUI - parcial: V2 pasado por usuario; V3 pasado/aceptado por usuario con acciones dentro del selector funcionando y clicks fuera bloqueados mientras el selector esta abierto; V4 aceptado por usuario porque la GUI no permite cambiar workspace/clip con el selector abierto y la cobertura de sesion incoherente ya paso en background; V5 sigue pendiente.
+- Blender GUI - parcial: V2 pasado por usuario; V3 pasado/aceptado por usuario con acciones dentro del selector funcionando y clicks fuera bloqueados mientras el selector esta abierto; V4 aceptado por usuario porque la GUI no permite cambiar workspace/clip con el selector abierto y la cobertura de sesion incoherente ya paso en background; V5 no es ejecutable desde menu mientras el selector modal bloquea UI externa y se recomienda aceptarlo cubierto por background/load_pre.
 - Bug runtime nuevo encontrado durante la validacion: cuando los thumbnails superan la capacidad de la ventana quedan ocultos. Este bug corresponde a M6 de `docs/technical-audit.md` y se planifica en `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md`.
 
 ## Validaciones Pendientes
 
-- V5: cargar otro `.blend` con selector abierto y confirmar ausencia de overlay fantasma, timers vivos o spam de consola.
+- Resuelto por confirmacion del usuario: se acepta que el selector es modal y que V5 GUI por menu no aplica mientras bloquee UI externa.
 
 ## Resultado Esperado
 
@@ -254,6 +255,10 @@ Si todas las validaciones pasan:
 - actualizar el ledger de `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md` para C1, C2 y B5 como `corregido`;
 - actualizar PCS para habilitar el siguiente plan de Fase 6a hito 2;
 - no cerrar ni archivar planes sin instruccion explicita.
+
+Resultado final:
+
+- Validado por confirmacion del usuario. V2 funciona; V3/V4 se aceptan con UI externa bloqueada mientras el selector esta abierto; V5 se re-clasifica como no aplicable desde menu bajo contrato modal visible/intencional, manteniendo la cobertura C2 por `load_pre` y `ReferenceError`.
 
 Si alguna validacion falla:
 

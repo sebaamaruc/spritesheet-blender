@@ -36,8 +36,6 @@ def update_collection_name(self: bpy.types.PropertyGroup, context: bpy.types.Con
 
 def update_clip_cache_dirty(self: bpy.types.PropertyGroup, context: bpy.types.Context) -> None:
     self.cache_dirty = True
-    if hasattr(self, "render_dirty"):
-        self.render_dirty = True
 
 
 def update_clip_name_unique(self: bpy.types.PropertyGroup, context: bpy.types.Context) -> None:
@@ -83,15 +81,38 @@ def _mark_collection_owner_dirty(
     if state is None:
         return
 
+    target_pointer = _property_group_pointer(collection_item)
+
     for workspace in state.workspaces:
-        if any(item == collection_item for item in workspace.default_collections):
+        if any(_same_property_group(item, collection_item, target_pointer) for item in workspace.default_collections):
             for clip in workspace.clips:
                 clip.cache_dirty = True
             return
         for clip in workspace.clips:
-            if any(item == collection_item for item in clip.included_collections):
+            if any(_same_property_group(item, collection_item, target_pointer) for item in clip.included_collections):
                 clip.cache_dirty = True
                 return
+
+
+def _property_group_pointer(item: bpy.types.PropertyGroup) -> int | None:
+    as_pointer = getattr(item, "as_pointer", None)
+    if as_pointer is None:
+        return None
+    try:
+        return int(as_pointer())
+    except (ReferenceError, RuntimeError, TypeError, ValueError):
+        return None
+
+
+def _same_property_group(
+    item: bpy.types.PropertyGroup,
+    target: bpy.types.PropertyGroup,
+    target_pointer: int | None,
+) -> bool:
+    item_pointer = _property_group_pointer(item)
+    if item_pointer is not None and target_pointer is not None:
+        return item_pointer == target_pointer
+    return item is target
 
 
 class SpriteSheetIncludedCollection(bpy.types.PropertyGroup):
@@ -120,16 +141,6 @@ class SpriteSheetFrameItem(bpy.types.PropertyGroup):
         name="Preview Path",
         subtype="FILE_PATH",
         default="",
-    )
-    render_path: bpy.props.StringProperty(
-        name="Render Path",
-        subtype="FILE_PATH",
-        default="",
-    )
-    original_index: bpy.props.IntProperty(
-        name="Original Index",
-        default=-1,
-        min=-1,
     )
 
 
@@ -200,11 +211,13 @@ class SpriteSheetClip(bpy.types.PropertyGroup):
     frame_start: bpy.props.IntProperty(
         name="Start",
         default=1,
+        min=0,
         update=update_clip_cache_dirty,
     )
     frame_end: bpy.props.IntProperty(
         name="End",
         default=20,
+        min=0,
         update=update_clip_cache_dirty,
     )
     frame_step: bpy.props.IntProperty(
@@ -269,23 +282,6 @@ class SpriteSheetClip(bpy.types.PropertyGroup):
     )
     last_preview_note: bpy.props.StringProperty(
         name="Last Preview Note",
-        default="",
-    )
-    render_key: bpy.props.StringProperty(
-        name="Render Key",
-        default="",
-    )
-    render_folder: bpy.props.StringProperty(
-        name="Render Folder",
-        subtype="DIR_PATH",
-        default="",
-    )
-    render_dirty: bpy.props.BoolProperty(
-        name="Render Dirty",
-        default=True,
-    )
-    last_render_note: bpy.props.StringProperty(
-        name="Last Render Note",
         default="",
     )
 

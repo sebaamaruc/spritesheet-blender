@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 
 import bpy
@@ -12,37 +13,25 @@ from ..core.cache import (
     clear_preview_state,
     count_existing_previews,
 )
+from ..core.context import active_workspace
 from ..core.frame_math import frame_numbers
 from ..core.frame_sync import sync_clip_frames
 from ..core.paths import (
     is_managed_cache_folder,
     preview_cache_folder,
     preview_cache_root,
+    safe_path_part,
 )
+from ..core.progress import progress_scope
+from ..core.validation import validate_preview_context
 from ..core.workspace_state import (
     active_clip_or_none,
-    active_workspace_or_none,
-    default_collection_count_error,
     effective_camera_or_none,
     effective_collections,
     effective_preview_mode,
-    missing_effective_collection_names,
 )
 from ..preview.generator import generate_viewport_previews
-
-
-def _scene_state(context: bpy.types.Context) -> bpy.types.PropertyGroup | None:
-    scene = getattr(context, "scene", None)
-    if scene is None:
-        return None
-    return getattr(scene, "spritesheet_state", None)
-
-
-def _active_workspace(context: bpy.types.Context) -> bpy.types.PropertyGroup | None:
-    state = _scene_state(context)
-    if state is None:
-        return None
-    return active_workspace_or_none(state)
+from ..ui.visual_selector import notify_preview_cache_regenerated
 
 
 def _expected_frames(clip: bpy.types.PropertyGroup) -> list[int]:
@@ -55,7 +44,7 @@ def _generate_preview_cache(
     *,
     force: bool,
 ) -> set[str]:
-    workspace = _active_workspace(context)
+    workspace = active_workspace(context)
     if workspace is None:
         operator.report({"WARNING"}, "No active workspace")
         return {"CANCELLED"}
@@ -65,31 +54,15 @@ def _generate_preview_cache(
         operator.report({"WARNING"}, "No active clip")
         return {"CANCELLED"}
 
-    camera = effective_camera_or_none(workspace, clip)
-    if camera is None:
+    context_errors = validate_preview_context(workspace, clip)
+    if context_errors:
         clip.cache_dirty = True
-        clip.last_preview_note = "Missing effective camera"
+        clip.last_preview_note = context_errors[0]
         operator.report({"WARNING"}, clip.last_preview_note)
         return {"CANCELLED"}
 
+    camera = effective_camera_or_none(workspace, clip)
     collections = effective_collections(workspace, clip)
-    missing_collections = missing_effective_collection_names(workspace, clip)
-    if missing_collections:
-        clip.cache_dirty = True
-        clip.last_preview_note = "Missing collection: " + ", ".join(missing_collections)
-        operator.report({"WARNING"}, clip.last_preview_note)
-        return {"CANCELLED"}
-    collection_count_error = default_collection_count_error(workspace, clip)
-    if collection_count_error:
-        clip.cache_dirty = True
-        clip.last_preview_note = collection_count_error
-        operator.report({"WARNING"}, collection_count_error)
-        return {"CANCELLED"}
-    if not collections:
-        clip.cache_dirty = True
-        clip.last_preview_note = "Missing effective collections"
-        operator.report({"WARNING"}, clip.last_preview_note)
-        return {"CANCELLED"}
 
     try:
         expected_frames = _expected_frames(clip)
@@ -107,7 +80,7 @@ def _generate_preview_cache(
         return {"CANCELLED"}
 
     sync_clip_frames(clip, expected_frames)
-    preview_mode = effective_preview_mode(workspace, clip)
+    preview_mode = effective_preview_mode(clip)
     cache_key = build_preview_cache_key(workspace, clip, camera, collections, preview_mode)
     cache_root = preview_cache_root(bpy.data.filepath)
     cache_folder = preview_cache_folder(cache_root, workspace.id, clip.id, cache_key)
@@ -115,16 +88,18 @@ def _generate_preview_cache(
     if force and os.path.isdir(cache_folder):
         shutil.rmtree(cache_folder)
 
-    result = generate_viewport_previews(
-        context,
-        clip,
-        camera,
-        collections,
-        cache_folder,
-        expected_frames,
-        force=force,
-        preview_mode=preview_mode,
-    )
+    with progress_scope(context, len(expected_frames)) as progress:
+        result = generate_viewport_previews(
+            context,
+            clip,
+            camera,
+            collections,
+            cache_folder,
+            expected_frames,
+            force=force,
+            preview_mode=preview_mode,
+            progress_callback=progress.step,
+        )
     if not result.success:
         clip.cache_dirty = True
         clip.last_preview_note = result.message
@@ -138,6 +113,10 @@ def _generate_preview_cache(
     clip.cache_folder = cache_folder
     clip.cache_dirty = False
     clip.last_preview_note = f"{count_existing_previews(clip)} previews ready"
+    if result.alpha_warning:
+        clip.last_preview_note = f"{clip.last_preview_note}; {result.message}"
+    _purge_sibling_preview_caches(cache_root, workspace.id, clip.id, cache_key)
+    notify_preview_cache_regenerated(workspace.id, clip.id)
     return {"FINISHED"}
 
 
@@ -150,13 +129,22 @@ class SPRITESHEET_OT_preview_generate(bpy.types.Operator):
         return _generate_preview_cache(self, context, force=False)
 
 
+class SPRITESHEET_OT_preview_regenerate(bpy.types.Operator):
+    bl_idname = "spritesheet.preview_regenerate"
+    bl_label = "Regenerate Preview"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context: bpy.types.Context) -> set[str]:
+        return _generate_preview_cache(self, context, force=True)
+
+
 class SPRITESHEET_OT_preview_clear_cache(bpy.types.Operator):
     bl_idname = "spritesheet.preview_clear_cache"
     bl_label = "Clear Cache"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        workspace = _active_workspace(context)
+        workspace = active_workspace(context)
         clip = active_clip_or_none(workspace) if workspace is not None else None
         if clip is None:
             self.report({"WARNING"}, "No active clip")
@@ -175,6 +163,35 @@ class SPRITESHEET_OT_preview_clear_cache(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def _purge_sibling_preview_caches(
+    cache_root: str,
+    workspace_id: str,
+    clip_id: str,
+    current_cache_key: str,
+) -> None:
+    clip_cache_root = os.path.join(
+        cache_root,
+        safe_path_part(workspace_id or "workspace"),
+        safe_path_part(clip_id or "clip"),
+    )
+    if not os.path.isdir(clip_cache_root):
+        return
+
+    current_name = safe_path_part(current_cache_key)
+    for entry_name in os.listdir(clip_cache_root):
+        if entry_name == current_name:
+            continue
+        entry_path = os.path.join(clip_cache_root, entry_name)
+        if not os.path.isdir(entry_path):
+            continue
+        if _is_cache_key_folder_name(entry_name) and is_managed_cache_folder(entry_path):
+            shutil.rmtree(entry_path)
+
+
+def _is_cache_key_folder_name(name: str) -> bool:
+    return re.fullmatch(r"[0-9a-f]{16}", name) is not None
+
+
 class SPRITESHEET_OT_preview_size_preset(bpy.types.Operator):
     bl_idname = "spritesheet.preview_size_preset"
     bl_label = "Preview Size Preset"
@@ -183,7 +200,7 @@ class SPRITESHEET_OT_preview_size_preset(bpy.types.Operator):
     size: bpy.props.IntProperty(name="Size", default=64, min=32, max=256)
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        workspace = _active_workspace(context)
+        workspace = active_workspace(context)
         clip = active_clip_or_none(workspace) if workspace is not None else None
         if clip is None:
             self.report({"WARNING"}, "No active clip")

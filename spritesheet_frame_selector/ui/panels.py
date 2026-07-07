@@ -7,11 +7,10 @@ import bpy
 from ..core.cache import cache_warning, count_preview_references
 from ..core.frame_math import frame_count
 from ..core.selection import selected_frame_count
+from ..core.validation import validate_preview_context
 from ..core.workspace_state import (
     clip_at_active_index_or_none,
     effective_preview_mode,
-    missing_effective_collection_names,
-    preview_context_warnings,
     workspace_at_active_index_or_none,
 )
 from ..playback.sequence import playback_ready_summary
@@ -164,20 +163,19 @@ class SPRITESHEET_PT_main(bpy.types.Panel):
         preview_box.menu("SPRITESHEET_MT_preview_size", text=f"Preview Size: {clip.preview_size}px")
         row = preview_box.row(align=True)
         row.operator("spritesheet.preview_generate", text="Generate Preview", icon="RENDER_STILL")
+        row.operator("spritesheet.preview_regenerate", text="Regenerate", icon="FILE_REFRESH")
         row.operator("spritesheet.preview_clear_cache", text="Clear Cache", icon="TRASH")
 
         status_box = layout.box()
         status_box.label(text="Preview Status")
-        for warning in preview_context_warnings(workspace, clip):
+        for warning in validate_preview_context(workspace, clip):
             status_box.label(text=warning, icon="ERROR")
-        for name in missing_effective_collection_names(workspace, clip):
-            status_box.label(text=f"Missing collection: {name}", icon="ERROR")
         cache_note = cache_warning(clip)
         if cache_note:
             status_box.label(text=cache_note, icon="INFO")
         if clip.last_preview_note:
             status_box.label(text=clip.last_preview_note)
-        status_box.label(text=f"Mode: {effective_preview_mode(workspace, clip)}")
+        status_box.label(text=f"Mode: {effective_preview_mode(clip)}")
         status_box.label(text=f"Previews: {preview_refs}")
 
         playback_summary = playback_ready_summary(clip)

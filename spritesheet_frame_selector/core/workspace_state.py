@@ -67,7 +67,7 @@ def effective_collections(workspace: Any, clip: Any) -> list[Any]:
     ]
 
 
-def effective_preview_mode(workspace: Any, clip: Any) -> str:
+def effective_preview_mode(clip: Any) -> str:
     """Return the clip preview mode used for on-demand preview generation."""
     return getattr(clip, "preview_mode", "SOLID")
 
@@ -88,26 +88,6 @@ def default_collection_count_error(workspace: Any, clip: Any) -> str:
     if len(getattr(workspace, "default_collections", ())) > 1:
         return "Workspace supports only one default collection"
     return ""
-
-
-def preview_context_warnings(workspace: Any | None, clip: Any | None) -> list[str]:
-    """Return passive validation warnings for workspace-aware preview generation."""
-    if workspace is None:
-        return ["No active workspace"]
-    if clip is None:
-        return ["No active clip"]
-
-    warnings: list[str] = []
-    if effective_camera_or_none(workspace, clip) is None:
-        warnings.append("Missing effective camera")
-    collection_count_error = default_collection_count_error(workspace, clip)
-    if collection_count_error:
-        warnings.append(collection_count_error)
-    if not effective_collections(workspace, clip):
-        warnings.append("Missing effective collections")
-    for name in missing_effective_collection_names(workspace, clip):
-        warnings.append(f"Missing collection: {name}")
-    return warnings
 
 
 def clamp_active_clip_index(workspace: Any) -> int:
@@ -175,18 +155,14 @@ def duplicate_clip_data(source: Any, target: Any, *, new_id: str = "") -> None:
     target.active_frame_index = source.active_frame_index
 
     _copy_included_collections(source.included_collections, target.included_collections)
-    _clear_collection(target.frames)
+    clear_collection(target.frames)
     for source_frame in source.frames:
         target_frame = target.frames.add()
         target_frame.frame_number = source_frame.frame_number
         target_frame.selected = source_frame.selected
         target_frame.preview_path = ""
-        if hasattr(target_frame, "render_path"):
-            target_frame.render_path = ""
-        target_frame.original_index = source_frame.original_index
 
     clear_clip_cache_state(target)
-    clear_clip_render_state(target)
 
 
 def duplicate_workspace_data(
@@ -206,7 +182,7 @@ def duplicate_workspace_data(
     _copy_included_collections(source.default_collections, target.default_collections)
     _copy_export_settings(source.export_settings, target.export_settings)
 
-    _clear_collection(target.clips)
+    clear_collection(target.clips)
     for source_clip in source.clips:
         target_clip = target.clips.add()
         duplicate_clip_data(
@@ -226,21 +202,6 @@ def clear_clip_cache_state(clip: Any) -> None:
     clip.cache_folder = ""
     clip.cache_dirty = True
     clip.last_preview_note = ""
-
-
-def clear_clip_render_state(clip: Any) -> None:
-    """Clear derived final render fields without removing persistent selection."""
-    for frame in clip.frames:
-        if hasattr(frame, "render_path"):
-            frame.render_path = ""
-    if hasattr(clip, "render_key"):
-        clip.render_key = ""
-    if hasattr(clip, "render_folder"):
-        clip.render_folder = ""
-    if hasattr(clip, "render_dirty"):
-        clip.render_dirty = True
-    if hasattr(clip, "last_render_note"):
-        clip.last_render_note = ""
 
 
 def _clamp_owner_index(owner: Any, collection_name: str, index_name: str) -> int:
@@ -273,7 +234,7 @@ def _bounded_index_or_none(
 
 
 def _copy_included_collections(source_collection: Any, target_collection: Any) -> None:
-    _clear_collection(target_collection)
+    clear_collection(target_collection)
     for source_item in source_collection:
         target_item = target_collection.add()
         target_item.collection = source_item.collection
@@ -293,7 +254,7 @@ def _copy_export_settings(source: Any, target: Any) -> None:
     target.png_sequence_folder = source.png_sequence_folder
 
 
-def _clear_collection(collection: Any) -> None:
+def clear_collection(collection: Any) -> None:
     if hasattr(collection, "clear"):
         collection.clear()
         return

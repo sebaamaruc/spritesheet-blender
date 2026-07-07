@@ -2,10 +2,7 @@ import unittest
 from types import SimpleNamespace
 
 from spritesheet_frame_selector.core.render_state import (
-    build_render_key,
-    clear_render_state,
-    count_render_references,
-    render_file_name,
+    render_file_path,
     render_output_file_name,
     selected_frame_numbers,
 )
@@ -28,8 +25,6 @@ def fake_frame(frame_number=1, selected=True):
         frame_number=frame_number,
         selected=selected,
         preview_path=f"/tmp/preview_{frame_number}.png",
-        render_path=f"/tmp/render_{frame_number}.png",
-        original_index=-1,
     )
 
 
@@ -63,10 +58,6 @@ def fake_clip():
         use_collection_override=False,
         included_collections=FakeCollection(fake_collection_item),
         frames=[fake_frame(1, True), fake_frame(2, False), fake_frame(3, True)],
-        render_key="render-key",
-        render_folder="/tmp/render-folder",
-        render_dirty=False,
-        last_render_note="note",
     )
 
 
@@ -86,73 +77,7 @@ class RenderStateTests(unittest.TestCase):
     def test_selected_frame_numbers_use_persistent_order(self):
         self.assertEqual(selected_frame_numbers(fake_clip()), [1, 3])
 
-    def test_render_key_uses_ids_settings_and_context_not_visible_names(self):
-        workspace = fake_workspace()
-        clip = fake_clip()
-        collections = [workspace.default_collections[0].collection]
-
-        original = build_render_key(
-            workspace,
-            clip,
-            workspace.default_camera,
-            collections,
-            workspace.export_settings,
-            [1, 3],
-        )
-        workspace.name = "Renamed Workspace"
-        clip.name = "Renamed Clip"
-
-        self.assertEqual(
-            build_render_key(
-                workspace,
-                clip,
-                workspace.default_camera,
-                collections,
-                workspace.export_settings,
-                [1, 3],
-            ),
-            original,
-        )
-
-        workspace.export_settings.frame_width = 128
-        self.assertNotEqual(
-            build_render_key(
-                workspace,
-                clip,
-                workspace.default_camera,
-                collections,
-                workspace.export_settings,
-                [1, 3],
-            ),
-            original,
-        )
-
-    def test_render_key_changes_with_selected_frames(self):
-        workspace = fake_workspace()
-        clip = fake_clip()
-        collections = [workspace.default_collections[0].collection]
-
-        first = build_render_key(
-            workspace,
-            clip,
-            workspace.default_camera,
-            collections,
-            workspace.export_settings,
-            [1, 3],
-        )
-        second = build_render_key(
-            workspace,
-            clip,
-            workspace.default_camera,
-            collections,
-            workspace.export_settings,
-            [1],
-        )
-
-        self.assertNotEqual(first, second)
-
-    def test_render_file_names_are_stable_and_sheet_prefixed(self):
-        self.assertEqual(render_file_name(7), "frame_007.png")
+    def test_render_output_paths_use_output_index_not_frame_number(self):
         self.assertEqual(
             render_output_file_name(7, "Run Cycle"),
             "Run_Cycle_frame_007.png",
@@ -160,6 +85,10 @@ class RenderStateTests(unittest.TestCase):
         self.assertEqual(
             render_output_file_name(1, "Run Cycle"),
             "Run_Cycle_frame_001.png",
+        )
+        self.assertEqual(
+            render_file_path("/tmp/render", 2, "Run Cycle"),
+            "/tmp/render/Run_Cycle_frame_002.png",
         )
 
     def test_validation_requires_camera_collections_and_selected_frames(self):
@@ -183,21 +112,6 @@ class RenderStateTests(unittest.TestCase):
             "Workspace supports only one default collection",
             validate_active_clip_render_context(workspace, clip),
         )
-
-    def test_clear_render_state_keeps_selection_and_preview_paths(self):
-        clip = fake_clip()
-        preview_paths = [frame.preview_path for frame in clip.frames]
-
-        clear_render_state(clip)
-
-        self.assertEqual(count_render_references(clip), 0)
-        self.assertEqual([frame.preview_path for frame in clip.frames], preview_paths)
-        self.assertEqual([frame.selected for frame in clip.frames], [True, False, True])
-        self.assertEqual(clip.render_key, "")
-        self.assertEqual(clip.render_folder, "")
-        self.assertTrue(clip.render_dirty)
-        self.assertEqual(clip.last_render_note, "")
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -9,34 +9,18 @@ from typing import Any
 
 import bpy
 
+from ..core.context import active_workspace
 from ..core.frame_math import frame_numbers
 from ..core.frame_sync import sync_clip_frames
+from ..core.progress import progress_scope
 from ..core.render_state import selected_frame_numbers
 from ..core.validation import validate_active_clip_render_context
-from ..core.workspace_state import (
-    active_workspace_or_none,
-    effective_camera_or_none,
-    effective_collections,
-)
+from ..core.workspace_state import effective_camera_or_none, effective_collections
 from ..export.composer import compose_spritesheet_png
 from ..export.layout import ExportClip, clip_ranges
 from ..export.metadata import build_spritesheet_metadata
-from ..export.sequence import export_individual_frames
+from ..export.sequence import export_individual_frames, validate_individual_frame_limit
 from ..render.renderer import render_clip_frames
-
-
-def _scene_state(context: bpy.types.Context) -> bpy.types.PropertyGroup | None:
-    scene = getattr(context, "scene", None)
-    if scene is None:
-        return None
-    return getattr(scene, "spritesheet_state", None)
-
-
-def _active_workspace(context: bpy.types.Context) -> bpy.types.PropertyGroup | None:
-    state = _scene_state(context)
-    if state is None:
-        return None
-    return active_workspace_or_none(state)
 
 
 class SPRITESHEET_OT_export_spritesheet(bpy.types.Operator):
@@ -45,7 +29,7 @@ class SPRITESHEET_OT_export_spritesheet(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        workspace = _active_workspace(context)
+        workspace = active_workspace(context)
         if workspace is None:
             self.report({"WARNING"}, "No active workspace")
             return {"CANCELLED"}
@@ -62,6 +46,8 @@ class SPRITESHEET_OT_export_spritesheet(bpy.types.Operator):
         included_clips = [clip for clip in workspace.clips if clip.include_in_export]
         try:
             prepared = _prepare_export_clips(included_clips)
+            if settings.export_png_sequence:
+                _validate_prepared_individual_frame_limit(prepared)
         except ValueError as exc:
             workspace.last_export_note = str(exc)
             self.report({"WARNING"}, str(exc))
@@ -76,67 +62,73 @@ class SPRITESHEET_OT_export_spritesheet(bpy.types.Operator):
             else ""
         )
 
-        with tempfile.TemporaryDirectory(prefix="spritesheet_export_") as temp_dir:
-            try:
-                frame_paths = _ensure_rendered_frames(
-                    self,
-                    context,
-                    workspace,
-                    prepared,
-                    temp_dir,
-                )
-            except RuntimeError as exc:
-                workspace.last_export_note = str(exc)
-                self.report({"WARNING"}, str(exc))
-                return {"CANCELLED"}
-
-            compose_result = compose_spritesheet_png(
-                frame_paths,
-                png_path,
-                frame_width=settings.frame_width,
-                frame_height=settings.frame_height,
-                columns=settings.columns,
-                padding=settings.padding,
-                margin=settings.margin,
-                transparent=settings.transparent,
-            )
-            if not compose_result.success:
-                workspace.last_export_note = compose_result.message
-                self.report({"WARNING"}, compose_result.message)
-                return {"CANCELLED"}
-
-            if settings.export_png_sequence:
+        progress_total = _export_progress_total(prepared, settings.export_png_sequence)
+        with progress_scope(context, progress_total) as progress:
+            with tempfile.TemporaryDirectory(prefix="spritesheet_export_") as temp_dir:
                 try:
-                    export_individual_frames(frame_paths, sequence_folder, sheet_name)
-                except (OSError, ValueError) as exc:
+                    frame_paths = _ensure_rendered_frames(
+                        self,
+                        context,
+                        workspace,
+                        prepared,
+                        temp_dir,
+                        progress_callback=progress.step,
+                    )
+                except RuntimeError as exc:
                     workspace.last_export_note = str(exc)
                     self.report({"WARNING"}, str(exc))
                     return {"CANCELLED"}
-                settings.png_sequence_folder = sequence_folder
 
-        ranges = clip_ranges(
-            ExportClip(
-                name=item["clip"].name,
-                fps=item["clip"].fps,
-                frame_paths=tuple(item["paths"]),
+                compose_result = compose_spritesheet_png(
+                    frame_paths,
+                    png_path,
+                    frame_width=settings.frame_width,
+                    frame_height=settings.frame_height,
+                    columns=settings.columns,
+                    padding=settings.padding,
+                    margin=settings.margin,
+                    transparent=settings.transparent,
+                )
+                progress.step()
+                if not compose_result.success:
+                    workspace.last_export_note = compose_result.message
+                    self.report({"WARNING"}, compose_result.message)
+                    return {"CANCELLED"}
+
+                if settings.export_png_sequence:
+                    try:
+                        export_individual_frames(frame_paths, sequence_folder, sheet_name)
+                    except (OSError, ValueError) as exc:
+                        workspace.last_export_note = str(exc)
+                        self.report({"WARNING"}, str(exc))
+                        return {"CANCELLED"}
+                    settings.png_sequence_folder = sequence_folder
+                    progress.step()
+
+            ranges = clip_ranges(
+                ExportClip(
+                    name=item["clip"].name,
+                    fps=item["clip"].fps,
+                    frame_paths=tuple(item["paths"]),
+                )
+                for item in prepared
             )
-            for item in prepared
-        )
-        metadata = build_spritesheet_metadata(
-            sheet_name,
-            settings.frame_width,
-            settings.frame_height,
-            settings.columns,
-            ranges,
-        )
-        try:
-            with open(json_path, "w", encoding="utf-8") as handle:
-                json.dump(metadata, handle, indent=4)
-                handle.write("\n")
-        except OSError as exc:
-            workspace.last_export_note = str(exc)
-            self.report({"WARNING"}, str(exc))
-            return {"CANCELLED"}
+            metadata = build_spritesheet_metadata(
+                sheet_name,
+                settings.frame_width,
+                settings.frame_height,
+                settings.columns,
+                ranges,
+            )
+            try:
+                with open(json_path, "w", encoding="utf-8") as handle:
+                    json.dump(metadata, handle, indent=4)
+                    handle.write("\n")
+            except OSError as exc:
+                workspace.last_export_note = str(exc)
+                self.report({"WARNING"}, str(exc))
+                return {"CANCELLED"}
+            progress.step()
 
         workspace.last_export_png = png_path
         workspace.last_export_json = json_path
@@ -197,22 +189,34 @@ def _prepare_export_clips(clips: list[bpy.types.PropertyGroup]) -> list[dict[str
     return prepared
 
 
+def _validate_prepared_individual_frame_limit(prepared: list[dict[str, Any]]) -> None:
+    validate_individual_frame_limit([""] * sum(len(item["frame_numbers"]) for item in prepared))
+
+
+def _export_progress_total(
+    prepared: list[dict[str, Any]],
+    export_png_sequence: bool,
+) -> int:
+    total = sum(len(item["frame_numbers"]) for item in prepared)
+    total += 1
+    if export_png_sequence:
+        total += 1
+    total += 1
+    return total
+
+
 def _ensure_rendered_frames(
     operator: bpy.types.Operator,
     context: bpy.types.Context,
     workspace: bpy.types.PropertyGroup,
     prepared: list[dict[str, Any]],
     temp_dir: str,
+    progress_callback: Any | None = None,
 ) -> list[str]:
     all_paths: list[str] = []
     for clip_index, item in enumerate(prepared):
         clip = item["clip"]
         frame_numbers_to_export = item["frame_numbers"]
-        existing_paths = _existing_render_paths_for_clip(clip, frame_numbers_to_export)
-        if existing_paths is not None and not clip.render_dirty:
-            item["paths"] = existing_paths
-            all_paths.extend(existing_paths)
-            continue
 
         errors = validate_active_clip_render_context(workspace, clip)
         if errors:
@@ -229,31 +233,15 @@ def _ensure_rendered_frames(
             clip_folder,
             frame_numbers_to_export,
             workspace.export_settings,
+            progress_callback=progress_callback,
         )
         if not result.success:
             raise RuntimeError(result.message)
-
-        clip.last_render_note = f"Export rendered {len(result.frame_paths)} frames"
 
         paths = [result.frame_paths[frame_number] for frame_number in frame_numbers_to_export]
         item["paths"] = paths
         all_paths.extend(paths)
     return all_paths
-
-
-def _existing_render_paths_for_clip(
-    clip: bpy.types.PropertyGroup,
-    frame_numbers_to_export: list[int],
-) -> list[str] | None:
-    by_frame = {frame.frame_number: frame for frame in clip.frames}
-    paths: list[str] = []
-    for frame_number in frame_numbers_to_export:
-        frame = by_frame.get(frame_number)
-        path = getattr(frame, "render_path", "") if frame is not None else ""
-        if not path or not os.path.isfile(path):
-            return None
-        paths.append(path)
-    return paths
 
 
 def _safe_sheet_name(value: str) -> str:

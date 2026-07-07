@@ -1,6 +1,6 @@
 # Context Index
 
-Ultima actualizacion: 2026-07-05
+Ultima actualizacion: 2026-07-06
 
 ## Lectura Minima
 
@@ -21,34 +21,33 @@ Leer siempre:
 | `.context/worklog.jsonl` | Solo para auditoria o reconstruccion historica | append-only | vigente | alta |
 | `.context/manifest.json` | Para auditoria de version y estructura PCS | activo | vigente | alta |
 
-## Planes Activos
+## Planes Activos y Rectores
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
 | `docs/plans/reinicio-v2-master-plan.md` | Siempre antes de planificar o ejecutar cualquier trabajo del reinicio V2 | aprobado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md` | Plan rector activo para corregir o clasificar todos los hallazgos de `docs/technical-audit.md` antes de Fase 7 | aprobado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md` | Plan activo implementado para C1, C2 y B5; requiere validacion Blender antes de cerrar hito 1 | aprobado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md` | Plan implementado para M6 scroll del selector visual; requiere validacion Blender GUI | aprobado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md` | Plan rector para corregir o clasificar todos los hallazgos de `docs/technical-audit.md` | aprobado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md` | Plan de implementacion activo en desarrollo / validacion | implementado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md` | Plan implementado de consolidacion, registro e higiene tecnica; requiere validacion GUI | implementado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md` | Plan implementado de verificacion integral documental/automatica; requiere validacion GUI antes de Fase 7 | implementado | vigente | alta |
 
-## Planes Derivados Pendientes
-
-| Documento | Cuando leerlo | Estado | Vigencia | Confianza |
-|---|---|---|---|---|
-| `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md` | Revisar y aprobar despues de validar Fase 6, antes de packaging e instalacion ZIP | propuesto | diferido | alta |
-
-## Planes Derivados Implementados Pendientes De Validacion
+## Planes de Subfases Validados
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
-| `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md` | Validar en Blender antes de continuar con hitos 2/3 de Fase 6a | implementado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md` | Completar validaciones GUI V2-V5; automaticas/background ya pasaron | implementado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md` | Validar en Blender GUI scroll dentro del selector y PASS_THROUGH fuera del panel | implementado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md` | Hito 1 validado: C1, C2 y B5 modal/lifecycle | validado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md` | Validacion de hito 1 modal/lifecycle | validado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md` | Hito 2 validado: integridad selector/playback | validado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md` | Hito 3 validado: M6 scroll del selector | validado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6b0-preview-camera-viewport.md` | Previews usan camara efectiva desde Viewport | validado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6b-preview-alpha-estado-visual.md` | Hito de previews, alpha y estado visual | validado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6c-render-cache-final.md` | Eliminacion de render cache final e integracion MVP | validado | vigente | alta |
 
-## Planes Derivados Validados
+## Planes Propuestos
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
-| `docs/plans/reinicio-v2-fase-6b0-preview-camera-viewport.md` | Correccion runtime validada: Generate Preview usa la camara efectiva aunque el viewport no este en Camera View | validado | vigente | alta |
+| `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md` | Plan propuesto para packaging y distribucion final | propuesto | diferido | alta |
 
 ## Especificaciones
 
@@ -84,31 +83,12 @@ Leer siempre:
 
 ## Archivo
 
-Los documentos obsoletos o reemplazados viven en `docs/archive/`.
+Los documentos cerrados, reemplazados u obsoletos viven en `docs/archive/`.
+
+## Planes Activos
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
-| `docs/archive/implementation_plan.md` | Referencia del plan original de Ordered Clip List (Fase 1) | cerrado | stale | alta |
-| `docs/archive/audit_report.md` | Referencia historica de los bugs detectados antes de Workspace V1 | historico | stale | alta |
-| `docs/archive/mvp-original.md` | Copia integra del MVP historico previo a la normalizacion V2 | historico | archivado | alta |
-| `docs/archive/source-goals-v1.md` | Metas V1 archivadas; no usar como estado operativo vigente | historico | archivado | alta |
-| `docs/archive/source-goals-proposed-v1.md` | Borrador de metas V1 archivado; no usar como estado operativo vigente | historico | archivado | alta |
-| `docs/archive/reinicio-v2-fase-1-preservacion.md` | Preservacion Git del estado V1 validada | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-2-documentacion-base.md` | Normalizacion documental V2 validada | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-3-limpieza-arbol-activo.md` | Limpieza del arbol activo validada | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-4-scaffold-addon-v2.md` | Scaffold V2 validado | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5-vertical-slices.md` | Plan rector original de Fase 5 reemplazado parcialmente por workspace-root | reemplazado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5-workspace-root-vertical-slices.md` | Plan rector workspace-root de Fase 5 ejecutado hasta 5g | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5a-data-model-persistencia.md` | Historial del intento 5a original basado en clips directos bajo Scene state | reemplazado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5b-gestion-clips.md` | Historial del intento 5b original basado en lista global de clips | reemplazado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5c-preview-cache.md` | Historial del intento 5c original basado en preview cache por clip global | reemplazado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md` | Auditoria y rediseno workspace-root validados; contexto historico inmediato | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5a-workspace-data-model-persistencia.md` | Modelo persistente workspace-root validado | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5b-workspace-clip-management.md` | Gestion workspace-root de workspaces/clips validada | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5c-workspace-preview-cache.md` | Preview cache workspace-aware validado | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5d-visual-selector-minimo.md` | Selector visual minimo validado | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5e-playback-preview.md` | Playback preview validado | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md` | Spike selector modal/preview modes validado | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5e1-selector-playback-ux.md` | Correcciones UX selector/playback validadas | validado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5f-render-final-workspace-aware.md` | Render final workspace-aware reemplazado por flujo integrado en 5g | reemplazado | archivado | alta |
-| `docs/archive/reinicio-v2-fase-5g-export-spritesheet-json.md` | Export spritesheet, JSON, frames individuales y correcciones UI/naming/atajos validados | validado | archivado | alta |
+| `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md` | Plan activo para continuar la tarea actual | activo | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md` | Plan activo implementado; validar junto a 6d antes de Fase 7 | activo | vigente | alta |
+| `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md` | Plan activo implementado; validar matriz acumulada antes de Fase 7 | activo | vigente | alta |

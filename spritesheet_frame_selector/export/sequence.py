@@ -12,11 +12,10 @@ def export_individual_frames(
     sequence_folder: str,
     sheet_name: str,
 ) -> None:
+    validate_individual_frame_limit(frame_paths)
     os.makedirs(sequence_folder, exist_ok=True)
     clear_previous_individual_frames(sequence_folder, sheet_name)
     for output_index, source_path in enumerate(frame_paths, start=1):
-        if output_index > 999:
-            raise ValueError("Individual frame export supports up to 999 frames")
         target_path = os.path.join(
             sequence_folder,
             individual_frame_file_name(sheet_name, output_index),
@@ -27,10 +26,15 @@ def export_individual_frames(
 
 
 def clear_previous_individual_frames(sequence_folder: str, sheet_name: str) -> None:
-    pattern = re.compile(rf"^{re.escape(sheet_name)}_frame_(\d{{3}}|\d{{6}})\.png$")
+    pattern = re.compile(rf"^{re.escape(sheet_name)}_frame_\d{{3}}\.png$")
     for file_name in os.listdir(sequence_folder):
         if pattern.match(file_name):
             os.remove(os.path.join(sequence_folder, file_name))
+
+
+def validate_individual_frame_limit(frame_paths: list[str]) -> None:
+    if len(frame_paths) > 999:
+        raise ValueError("Individual frame export supports up to 999 frames")
 
 
 def individual_frame_file_name(sheet_name: str, frame_index: int) -> str:

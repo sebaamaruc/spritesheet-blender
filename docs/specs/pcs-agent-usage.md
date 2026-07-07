@@ -4,6 +4,10 @@ Estado: activo
 
 Esta guia contiene el detalle operativo de PCS para agentes. `AGENTS.md` conserva solo instrucciones inmediatas de arranque, proteccion y reglas locales criticas; este archivo explica como actualizar, validar, reparar o cerrar PCS sin duplicar todo el contrato minimo. Las reglas locales criticas del proyecto no viven aqui: deben estar brevemente en `AGENTS.md` y el detalle largo en docs locales.
 
+## Regla De Oro Del Presente
+
+Los archivos de `.context/` describen solo el presente. El pasado vive en `.context/worklog.jsonl` y `docs/archive/`. No acumular cronica de fases ni correcciones en `agent_context`, `handoff` ni `index`: al avanzar, mover lo terminado al worklog y podar el presente. Presupuestos: `agent_context.md` <=120 lineas, `handoff.md` <=60, `index.md` <=100. `pcs check` los reporta; `pcs compact` poda lo mecanico y `pcs prompt agy compact` guia la poda semantica.
+
 ## Archivos PCS
 
 - `.context/agent_context.md`: estado operativo actual, tarea activa, Plan Activo, proximo paso, riesgos y validaciones vigentes.
@@ -28,7 +32,9 @@ Para tareas laterales que merezcan registro sin tocar contexto principal, usar `
 - `pcs update --scope main`: actualizar estado operativo principal.
 - `pcs update --scope side`: registrar tarea lateral sin reemplazar contexto principal.
 - `pcs plan approve`: aprobar un plan persistido y convertirlo en Plan Activo.
-- `pcs close --approved`: cerrar solo con instruccion explicita del usuario.
+- `pcs close --approved`: cerrar solo con instruccion explicita del usuario; poda el presente al cerrar.
+- `pcs compact`: poda mecanica segura (Estado cerrado, exceso de archivos relevantes, tabla de archivo del index).
+- `pcs prompt agy compact`: prompt para la poda semantica (handoff, AGENTS.md, contradicciones) con hallazgos medidos.
 - `pcs sync --record`: registrar una reparacion mecanica solo cuando se pida dejar evento.
 
 ## Planes Y Cierre
@@ -38,6 +44,8 @@ Un plan propuesto en `docs/plans/` no es Plan Activo y no requiere `worklog` sal
 Validar no es cerrar. No ejecutar `pcs close`, archivar planes ni marcar `cerrado` sin instruccion explicita como "cierra PCS" o "ejecuta pcs close".
 
 Si un Plan Activo contradice el codigo o queda bloqueado, detenerse, registrar el bloqueo en `.context/handoff.md` y pedir decision humana.
+
+No eliminar planes en `docs/plans/*.md` con `Delete File`; archivarlos en `docs/archive/` preservando su contenido (`pcs close` lo hace automaticamente). Estados de `Estado De Ejecucion` en un plan: `pendiente` (aprobado, no implementado), `implementado` (cambios hechos, falta validar), `correcciones requeridas` (una revision encontro problemas), `validado` (criterios de aceptacion pasaron), `listo para cierre` (falta actualizar PCS), `cerrado` (PCS ya refleja el cierre). `implementado` no es `validado`; `validado` no es `cerrado`.
 
 ## Migracion De AGENTS.md
 

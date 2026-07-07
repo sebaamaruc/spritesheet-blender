@@ -7,6 +7,7 @@ from typing import Any
 
 import bpy
 
+from ..core.debug import debug_log
 from .sequence import next_playback_index
 from .sequence import playback_interval_seconds
 
@@ -60,9 +61,13 @@ def start_playback(
     return _session
 
 
-def resume_playback() -> bool:
+def resume_playback(fps: int | None = None) -> bool:
     if _session is None or _session.status != "paused":
         return False
+    if fps is not None:
+        if fps <= 0:
+            return False
+        _session.fps = fps
     _session.status = "playing"
     _register_timer(playback_interval_seconds(_session.fps))
     _tag_redraw()
@@ -117,6 +122,38 @@ def seek_playback_frame(frame_number: int) -> bool:
     except ValueError:
         return False
     _session.current_index = index
+    _tag_redraw()
+    return True
+
+
+def refresh_playback_session(
+    *,
+    workspace_id: str,
+    clip_id: str,
+    frame_numbers: list[int],
+    preview_paths: list[str],
+    fps: int,
+) -> bool:
+    """Refresh the active playback snapshot after clip selection changes."""
+    global _session
+    if not active_session_matches(workspace_id, clip_id):
+        return False
+    if not frame_numbers or not preview_paths or len(frame_numbers) != len(preview_paths) or fps <= 0:
+        stop_playback()
+        return True
+
+    current_frame = current_frame_number()
+    previous_index = _session.current_index if _session is not None else 0
+    try:
+        current_index = frame_numbers.index(current_frame)
+    except ValueError:
+        current_index = min(previous_index, len(frame_numbers) - 1)
+
+    if _session is not None:
+        _session.frame_numbers = list(frame_numbers)
+        _session.preview_paths = list(preview_paths)
+        _session.fps = fps
+        _session.current_index = current_index
     _tag_redraw()
     return True
 
@@ -228,7 +265,8 @@ def _session_matches_context() -> bool:
             return False
         clip = workspace.clips[clip_index]
         return getattr(clip, "id", "") == _session.clip_id
-    except Exception:
+    except Exception as exc:
+        debug_log("Playback session context check failed", exc)
         return False
 
 
@@ -240,6 +278,7 @@ def _tag_redraw() -> None:
             screen = getattr(window, "screen", None)
             areas = getattr(screen, "areas", []) if screen is not None else []
             for area in areas:
-                area.tag_redraw()
-    except Exception:
-        pass
+                if getattr(area, "type", "") == "VIEW_3D":
+                    area.tag_redraw()
+    except Exception as exc:
+        debug_log("Playback redraw tagging failed", exc)

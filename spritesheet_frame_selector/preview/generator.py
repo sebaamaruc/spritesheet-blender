@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
-from typing import Iterable
+from typing import Callable, Iterable
 from typing import Any
+from contextlib import contextmanager
 
 import bpy
 
 from ..core.cache import preview_file_path
+from ..core.debug import debug_log
 from ..core.visibility import collection_visibility_scope
 
 
@@ -18,6 +20,7 @@ class PreviewGenerationResult:
     success: bool
     frame_paths: dict[int, str]
     message: str
+    alpha_warning: bool = False
 
 
 @dataclass(frozen=True)
@@ -40,6 +43,7 @@ def generate_viewport_previews(
     *,
     force: bool = False,
     preview_mode: str = "SOLID",
+    progress_callback: Callable[[], None] | None = None,
 ) -> PreviewGenerationResult:
     """Generate OpenGL thumbnails and restore touched scene/render state."""
     scene = getattr(context, "scene", None)
@@ -62,12 +66,12 @@ def generate_viewport_previews(
     original_file_format = image_settings.file_format
     original_color_mode = getattr(image_settings, "color_mode", None)
     original_color_depth = getattr(image_settings, "color_depth", None)
-    original_compression = getattr(image_settings, "compression", None)
     original_film_transparent = render.film_transparent
     original_use_file_extension = render.use_file_extension
     original_camera = scene.camera
 
     frame_paths: dict[int, str] = {}
+    alpha_warning = False
     try:
         with collection_visibility_scope(context.view_layer, collections, camera):
             scene.camera = camera
@@ -81,31 +85,32 @@ def generate_viewport_previews(
             render.film_transparent = True
             render.use_file_extension = True
 
-            for frame_number in frame_numbers:
-                target_path = preview_file_path(cache_folder, frame_number)
-                frame_paths[frame_number] = target_path
-                if not force and os.path.isfile(target_path):
-                    continue
+            with _thumbnail_writer_scope(context, preview_mode) as thumbnail_writer:
+                for frame_number in frame_numbers:
+                    target_path = preview_file_path(cache_folder, frame_number)
+                    frame_paths[frame_number] = target_path
+                    if not force and os.path.isfile(target_path):
+                        if progress_callback is not None:
+                            progress_callback()
+                        continue
 
-                scene.frame_set(frame_number)
-                render.filepath = target_path
-                result = _write_thumbnail(context, preview_mode)
-                if not result or not os.path.isfile(target_path):
-                    return PreviewGenerationResult(
-                        False,
-                        frame_paths,
-                        f"Preview generation failed for frame {frame_number}",
-                    )
-                if preview_mode in {"SOLID", "MATERIAL"}:
-                    has_transparency = _preview_file_has_transparency(target_path)
-                    if has_transparency is False:
-                        _remove_file_if_exists(target_path)
+                    scene.frame_set(frame_number)
+                    render.filepath = target_path
+                    result = thumbnail_writer()
+                    if not result or not os.path.isfile(target_path):
                         return PreviewGenerationResult(
                             False,
                             frame_paths,
-                            f"{preview_mode.title()} preview did not produce transparent alpha",
+                            f"Preview generation failed for frame {frame_number}",
                         )
+                    if preview_mode in {"SOLID", "MATERIAL"}:
+                        has_transparency = _preview_file_has_transparency(target_path)
+                        if has_transparency is False:
+                            alpha_warning = True
+                    if progress_callback is not None:
+                        progress_callback()
     except Exception as exc:
+        debug_log("Viewport preview generation failed", exc)
         return PreviewGenerationResult(False, frame_paths, str(exc))
     finally:
         scene.frame_set(original_frame)
@@ -119,17 +124,20 @@ def generate_viewport_previews(
             image_settings.color_mode = original_color_mode
         if original_color_depth is not None:
             image_settings.color_depth = original_color_depth
-        if original_compression is not None:
-            image_settings.compression = original_compression
         render.film_transparent = original_film_transparent
         render.use_file_extension = original_use_file_extension
 
-    return PreviewGenerationResult(True, frame_paths, f"{preview_mode.title()} preview cache generated")
+    message = f"{preview_mode.title()} preview cache generated"
+    if alpha_warning:
+        message = f"{message}; no transparent pixels detected in one or more thumbnails"
+    return PreviewGenerationResult(True, frame_paths, message, alpha_warning=alpha_warning)
 
 
-def _write_thumbnail(context: bpy.types.Context, preview_mode: str) -> bool:
+@contextmanager
+def _thumbnail_writer_scope(context: bpy.types.Context, preview_mode: str):
     if preview_mode == "RENDERED":
-        return _write_render_thumbnail()
+        yield _write_render_thumbnail
+        return
     if bpy.app.background:
         raise RuntimeError(f"{preview_mode.title()} preview requires an open 3D Viewport")
 
@@ -137,14 +145,12 @@ def _write_thumbnail(context: bpy.types.Context, preview_mode: str) -> bool:
     if viewport_context is None:
         raise RuntimeError(f"{preview_mode.title()} preview requires an open 3D Viewport")
 
-    return _write_viewport_thumbnail(context, viewport_context, preview_mode)
+    with _viewport_render_scope(viewport_context, preview_mode):
+        yield lambda: _write_viewport_thumbnail(context, viewport_context)
 
 
-def _write_viewport_thumbnail(
-    context: bpy.types.Context,
-    viewport_context: ViewportRenderContext,
-    preview_mode: str,
-) -> bool:
+@contextmanager
+def _viewport_render_scope(viewport_context: ViewportRenderContext, preview_mode: str):
     space = viewport_context.space
     region_3d = viewport_context.region_3d
     if region_3d is None:
@@ -162,6 +168,22 @@ def _write_viewport_thumbnail(
             shading.type = preview_mode
         if overlay is not None and original_overlay is not None:
             overlay.show_overlays = False
+        yield
+    finally:
+        if original_view_perspective is not None:
+            region_3d.view_perspective = original_view_perspective
+        if shading is not None and original_shading_type is not None:
+            shading.type = original_shading_type
+        if overlay is not None and original_overlay is not None:
+            overlay.show_overlays = original_overlay
+
+
+def _write_viewport_thumbnail(
+    context: bpy.types.Context,
+    viewport_context: ViewportRenderContext,
+) -> bool:
+    space = viewport_context.space
+    try:
         with context.temp_override(
             window=viewport_context.window,
             screen=viewport_context.screen,
@@ -172,13 +194,6 @@ def _write_viewport_thumbnail(
             result = bpy.ops.render.opengl(write_still=True, view_context=True)
     except RuntimeError:
         return False
-    finally:
-        if original_view_perspective is not None:
-            region_3d.view_perspective = original_view_perspective
-        if shading is not None and original_shading_type is not None:
-            shading.type = original_shading_type
-        if overlay is not None and original_overlay is not None:
-            overlay.show_overlays = original_overlay
     return "CANCELLED" not in result
 
 
@@ -256,19 +271,12 @@ def _preview_file_has_transparency(path: str) -> bool | None:
             return False
         pixels = getattr(image, "pixels", ())
         return any(alpha < 0.999 for alpha in pixels[3::channels])
-    except Exception:
+    except Exception as exc:
+        debug_log(f"Preview transparency probe failed for {path}", exc)
         return None
     finally:
         if image is not None:
             try:
                 remove(image)
-            except Exception:
-                pass
-
-
-def _remove_file_if_exists(path: str) -> None:
-    try:
-        if os.path.isfile(path):
-            os.remove(path)
-    except OSError:
-        pass
+            except Exception as exc:
+                debug_log(f"Preview transparency image cleanup failed for {path}", exc)

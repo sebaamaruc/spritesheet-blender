@@ -6,6 +6,7 @@ if "bpy" not in sys.modules:
     sys.modules["bpy"] = SimpleNamespace(
         app=SimpleNamespace(background=False),
         data=SimpleNamespace(images=SimpleNamespace(remove=lambda _image: None)),
+        path=SimpleNamespace(abspath=lambda path: path),
         ops=SimpleNamespace(
             spritesheet=SimpleNamespace(),
         ),
@@ -20,9 +21,17 @@ if "bpy" not in sys.modules:
             ),
         ),
     )
+else:
+    bpy_stub = sys.modules["bpy"]
+    if not hasattr(bpy_stub, "path"):
+        bpy_stub.path = SimpleNamespace(abspath=lambda path: path)
+    if not hasattr(bpy_stub, "data"):
+        bpy_stub.data = SimpleNamespace(images=SimpleNamespace(remove=lambda _image: None))
 
 from spritesheet_frame_selector.ui.visual_selector import (
+    VisualSelectorSession,
     clamp_grid_offset,
+    _load_preview_image,
     scroll_direction_from_event,
     scrolled_grid_offset,
     visible_frame_window,
@@ -63,6 +72,50 @@ class VisualSelectorScrollTests(unittest.TestCase):
             [(visible_index, real_index, frame.frame_number) for visible_index, real_index, frame in visible],
             [(0, 4, 4), (1, 5, 5), (2, 6, 6)],
         )
+
+    def test_load_preview_image_reloads_only_on_first_session_cache(self):
+        class FakeImage:
+            def __init__(self):
+                self.reloads = 0
+
+            def reload(self):
+                self.reloads += 1
+
+        image = FakeImage()
+        loads = []
+        bpy_module = sys.modules["bpy"]
+        original_images = bpy_module.data.images
+        bpy_module.data.images = SimpleNamespace(
+            load=lambda path, check_existing=True: loads.append((path, check_existing)) or image,
+            remove=lambda _image: None,
+        )
+        try:
+            session = SimpleNamespace(images={})
+
+            first = _load_preview_image(session, "/tmp/frame.png")
+            second = _load_preview_image(session, "/tmp/frame.png")
+        finally:
+            bpy_module.data.images = original_images
+
+        self.assertIs(first, image)
+        self.assertIs(second, image)
+        self.assertEqual(loads, [("/tmp/frame.png", True)])
+        self.assertEqual(image.reloads, 1)
+
+    def test_visual_selector_session_resets_images_when_cache_key_changes(self):
+        session = VisualSelectorSession.__new__(VisualSelectorSession)
+        session.image_cache_key = ""
+        session.images = {"old": SimpleNamespace(users=1)}
+        session.checkerboard_layout = object()
+
+        session._sync_image_cache_key("cache-a")
+        self.assertIn("old", session.images)
+
+        session._sync_image_cache_key("cache-b")
+
+        self.assertEqual(session.image_cache_key, "cache-b")
+        self.assertEqual(session.images, {})
+        self.assertIsNone(session.checkerboard_layout)
 
 
 if __name__ == "__main__":

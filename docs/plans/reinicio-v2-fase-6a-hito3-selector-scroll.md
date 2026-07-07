@@ -3,7 +3,7 @@
 Estado: aprobado
 Autoridad: usuario
 Modo de ejecucion: ejecutar sin replanificar
-Estado De Ejecucion: implementado
+Estado De Ejecucion: validado
 
 ## Referencia Superior
 
@@ -23,7 +23,7 @@ Este plan cubre M6 de la auditoria y sigue la direccion propuesta por la auditor
 
 | ID | Severidad | Titulo | Estado En Este Subplan |
 |---|---|---|---|
-| M6 | medio | El selector visual no tiene scroll: los frames que no caben son inseleccionables desde el overlay | implementado; validacion GUI pendiente |
+| M6 | medio | El selector visual no tiene scroll: los frames que no caben son inseleccionables desde el overlay | validado por el usuario; queda ajuste UX no bloqueante de sensibilidad trackpad |
 
 ## Extracto Operativo De Auditoria
 
@@ -80,6 +80,9 @@ Este plan cubre M6 de la auditoria y sigue la direccion propuesta por la auditor
   - Seleccionar/togglear un frame que inicialmente estaba oculto y confirmar que cambia el frame correcto.
   - Usar rueda fuera del panel y confirmar que el evento sigue pasando al viewport, sin mover el grid.
   - Cambiar tamano de ventana o preview size y confirmar que el offset se clamplea y no deja grid vacio.
+- Resultado GUI:
+  - Validado por el usuario: el scroll del selector funciona con trackpad.
+  - Observacion UX: el movimiento con trackpad es demasiado sensible; requiere calibracion posterior si se decide pulir la interaccion.
 - Criterio de aceptacion:
   - Todos los frames del clip son accesibles visualmente desde el selector.
   - No se rompe C1: eventos fuera del panel siguen pasando a Blender.
@@ -110,3 +113,7 @@ Validar en Blender GUI que la rueda dentro del panel desplaza el grid y que la r
 ## Correccion Tras Validacion GUI
 
 El primer intento solo manejaba `WHEELUPMOUSE/WHEELDOWNMOUSE` y exigia `event.value == "PRESS"`, por lo que no respondia a trackpad. Se corrigio para manejar `TRACKPADPAN` dentro del panel y para no depender de `PRESS` en eventos de rueda.
+
+## Observacion UX Posterior
+
+El usuario valido que el scroll funciona, pero reporto sensibilidad excesiva con trackpad: un movimiento pequeno desplaza demasiado rapido. Esta observacion no invalida M6 porque todos los frames ya son accesibles, pero conviene resolverla como ajuste de calibracion: acumular delta de trackpad y desplazar solo al superar un umbral, reducir el paso de trackpad a una fila por umbral, o aplicar throttling por tiempo para evitar multiples eventos por gesto.

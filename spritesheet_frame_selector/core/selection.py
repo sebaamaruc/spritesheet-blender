@@ -24,13 +24,11 @@ def preview_ready_count(clip: Any) -> int:
 def set_all_frames_selected(clip: Any, selected: bool) -> None:
     for frame in clip.frames:
         frame.selected = selected
-    _mark_render_dirty(clip)
 
 
 def invert_frame_selection(clip: Any) -> None:
     for frame in clip.frames:
         frame.selected = not frame.selected
-    _mark_render_dirty(clip)
 
 
 def select_every_n_frames(clip: Any, n: int) -> None:
@@ -39,7 +37,6 @@ def select_every_n_frames(clip: Any, n: int) -> None:
 
     for index, frame in enumerate(clip.frames):
         frame.selected = index % n == 0
-    _mark_render_dirty(clip)
 
 
 def frame_selection_summary(clip: Any) -> FrameSelectionSummary:
@@ -48,8 +45,3 @@ def frame_selection_summary(clip: Any) -> FrameSelectionSummary:
         selected=selected_frame_count(clip),
         previews=preview_ready_count(clip),
     )
-
-
-def _mark_render_dirty(clip: Any) -> None:
-    if hasattr(clip, "render_dirty"):
-        clip.render_dirty = True

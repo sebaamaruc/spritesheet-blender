@@ -6,6 +6,7 @@ import uuid
 
 import bpy
 
+from ..core.context import scene_state
 from ..core.workspace_state import (
     active_workspace_or_none,
     clamp_active_workspace_index,
@@ -15,20 +16,13 @@ from ..core.workspace_state import (
 )
 
 
-def _scene_state(context: bpy.types.Context) -> bpy.types.PropertyGroup | None:
-    scene = getattr(context, "scene", None)
-    if scene is None:
-        return None
-    return getattr(scene, "spritesheet_state", None)
-
-
 class SPRITESHEET_OT_workspace_add(bpy.types.Operator):
     bl_idname = "spritesheet.workspace_add"
     bl_label = "Add Workspace"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        state = _scene_state(context)
+        state = scene_state(context)
         if state is None:
             self.report({"ERROR"}, "SpriteSheet scene state is unavailable")
             return {"CANCELLED"}
@@ -48,7 +42,7 @@ class SPRITESHEET_OT_workspace_remove(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        state = _scene_state(context)
+        state = scene_state(context)
         if state is None:
             self.report({"ERROR"}, "SpriteSheet scene state is unavailable")
             return {"CANCELLED"}
@@ -72,7 +66,7 @@ class SPRITESHEET_OT_workspace_duplicate(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        state = _scene_state(context)
+        state = scene_state(context)
         if state is None:
             self.report({"ERROR"}, "SpriteSheet scene state is unavailable")
             return {"CANCELLED"}
@@ -103,7 +97,7 @@ class SPRITESHEET_OT_workspace_select(bpy.types.Operator):
     index: bpy.props.IntProperty(name="Index", default=-1)
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        state = _scene_state(context)
+        state = scene_state(context)
         if state is None:
             self.report({"ERROR"}, "SpriteSheet scene state is unavailable")
             return {"CANCELLED"}
@@ -128,7 +122,7 @@ class SPRITESHEET_OT_workspace_move(bpy.types.Operator):
     )
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        state = _scene_state(context)
+        state = scene_state(context)
         if state is None:
             self.report({"ERROR"}, "SpriteSheet scene state is unavailable")
             return {"CANCELLED"}
@@ -148,7 +142,7 @@ class SPRITESHEET_OT_workspace_default_collection_add(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        state = _scene_state(context)
+        state = scene_state(context)
         workspace = active_workspace_or_none(state) if state is not None else None
         if workspace is None:
             self.report({"WARNING"}, "No active workspace")
@@ -160,8 +154,6 @@ class SPRITESHEET_OT_workspace_default_collection_add(bpy.types.Operator):
         workspace.default_collections.add()
         for clip in workspace.clips:
             clip.cache_dirty = True
-            if hasattr(clip, "render_dirty"):
-                clip.render_dirty = True
         return {"FINISHED"}
 
 
@@ -173,7 +165,7 @@ class SPRITESHEET_OT_workspace_default_collection_remove(bpy.types.Operator):
     index: bpy.props.IntProperty(name="Index", default=-1)
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        state = _scene_state(context)
+        state = scene_state(context)
         workspace = active_workspace_or_none(state) if state is not None else None
         if workspace is None:
             self.report({"WARNING"}, "No active workspace")
@@ -183,6 +175,4 @@ class SPRITESHEET_OT_workspace_default_collection_remove(bpy.types.Operator):
             workspace.default_collections.remove(self.index)
             for clip in workspace.clips:
                 clip.cache_dirty = True
-                if hasattr(clip, "render_dirty"):
-                    clip.render_dirty = True
         return {"FINISHED"}

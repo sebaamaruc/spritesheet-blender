@@ -43,7 +43,6 @@ def fake_frame():
         frame_number=1,
         selected=True,
         preview_path="preview.png",
-        original_index=-1,
     )
 
 
@@ -177,7 +176,6 @@ class WorkspaceStateTests(unittest.TestCase):
         source.frames[0].frame_number = 3
         source.frames[0].selected = False
         source.frames[0].preview_path = "cached-3.png"
-        source.frames[0].original_index = 0
         target = fake_clip()
 
         duplicate_clip_data(source, target, new_id="clip-new")

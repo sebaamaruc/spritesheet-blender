@@ -34,7 +34,6 @@ def fake_clip(count=4):
         cache_key="cache-key",
         cache_folder="/tmp/cache",
         cache_dirty=False,
-        render_dirty=False,
     )
     for index in range(count):
         frame = clip.frames.add()
@@ -97,14 +96,6 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(clip.cache_key, "cache-key")
         self.assertEqual(clip.cache_folder, "/tmp/cache")
         self.assertFalse(clip.cache_dirty)
-
-    def test_selection_changes_mark_render_dirty(self):
-        clip = fake_clip()
-
-        set_all_frames_selected(clip, True)
-
-        self.assertTrue(clip.render_dirty)
-
 
 if __name__ == "__main__":
     unittest.main()

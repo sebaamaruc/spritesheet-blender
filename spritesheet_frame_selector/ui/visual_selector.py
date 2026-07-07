@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
+import time
 from typing import Any
 
 import bpy
 
+from ..core.debug import debug_enabled
+from ..core.debug import debug_log
+from ..core.workspace_state import effective_preview_mode
 from ..playback.controller import active_session_matches
 from ..playback.controller import active_session_summary
 from ..playback.controller import current_frame_number
@@ -79,11 +83,14 @@ class VisualSelectorSession:
         self.frame_cells: list[FrameCell] = []
         self.button_cells: list[ButtonCell] = []
         self.images: dict[str, bpy.types.Image] = {}
+        self.image_cache_key = ""
         self.checkerboard_layout: CheckerboardLayout | None = None
         self.rect_shader: Any | None = None
         self.grid_offset = 0
         self.grid_columns = 1
         self.grid_max_visible = 1
+        self.texture_from_image_calls = 0
+        self.texture_from_image_seconds = 0.0
 
     def open(self) -> None:
         self.draw_handler = bpy.types.SpaceView3D.draw_handler_add(
@@ -117,7 +124,8 @@ class VisualSelectorSession:
             import blf
             import gpu
             from gpu_extras.batch import batch_for_shader
-        except Exception:
+        except Exception as exc:
+            debug_log("Visual selector draw imports failed", exc)
             return
 
         workspace, clip = active_workspace_clip_readonly(bpy.context)
@@ -125,6 +133,7 @@ class VisualSelectorSession:
             return
         if workspace.id != self.workspace_id or clip.id != self.clip_id:
             return
+        self._sync_image_cache_key(getattr(clip, "cache_key", ""))
 
         region_width = self.region.width if self.region is not None else 1200
         region_height = self.region.height if self.region is not None else 800
@@ -143,7 +152,7 @@ class VisualSelectorSession:
             blf,
             panel.x + panel.width - min(310, panel.width * 0.48),
             panel.y + panel.height - 24,
-            f"Mode: {workspace.selector_mode}   Preview: {effective_preview_label(workspace, clip)}",
+            f"Mode: {workspace.selector_mode}   Preview: {effective_preview_mode(clip)}",
             12,
         )
 
@@ -165,7 +174,8 @@ class VisualSelectorSession:
         if grid_height < 48:
             try:
                 _draw_batched_checkerboard(gpu, batch_for_shader, self, preview_display_rect, [])
-            except Exception:
+            except Exception as exc:
+                debug_log("Checkerboard batch draw failed", exc)
                 _draw_preview_fallback_backgrounds(gpu, batch_for_shader, preview_display_rect, [])
             if current_frame is not None:
                 _draw_preview_image(gpu, batch_for_shader, self, current_frame.preview_path, viewer)
@@ -209,7 +219,8 @@ class VisualSelectorSession:
                 preview_display_rect,
                 frame_rects,
             )
-        except Exception:
+        except Exception as exc:
+            debug_log("Checkerboard batch draw failed", exc)
             _draw_preview_fallback_backgrounds(gpu, batch_for_shader, preview_display_rect, frame_rects)
 
         if current_frame is not None:
@@ -295,6 +306,16 @@ class VisualSelectorSession:
                 pass
         self.images.clear()
 
+    def _sync_image_cache_key(self, cache_key: str) -> None:
+        if self.image_cache_key == "":
+            self.image_cache_key = cache_key
+            return
+        if cache_key == self.image_cache_key:
+            return
+        self._release_images()
+        self.checkerboard_layout = None
+        self.image_cache_key = cache_key
+
 
 _session: VisualSelectorSession | None = None
 
@@ -324,7 +345,34 @@ def cleanup_visual_selector_resources() -> None:
         _session = None
 
 
+def notify_preview_cache_regenerated(workspace_id: str, clip_id: str) -> None:
+    """Drop cached preview images for the open selector after a (re)generation.
+
+    Regenerating with unchanged settings reuses the same cache key, so the
+    session's cache-key comparison alone would not detect that the underlying
+    PNG files were rewritten. Callers must invoke this explicitly whenever
+    preview generation succeeds for a workspace/clip pair.
+    """
+    if _session is None:
+        return
+    if _session.workspace_id != workspace_id or _session.clip_id != clip_id:
+        return
+    _session._release_images()
+    _session.checkerboard_layout = None
+    _session.image_cache_key = ""
+    _tag_redraw(_session.area)
+
+
 def handle_visual_selector_event(context: bpy.types.Context, event: bpy.types.Event) -> set[str] | None:
+    try:
+        return _handle_visual_selector_event(context, event)
+    except ReferenceError as exc:
+        debug_log("Visual selector event handling hit a stale area/region reference", exc)
+        cleanup_visual_selector_resources()
+        return {"CANCELLED"}
+
+
+def _handle_visual_selector_event(context: bpy.types.Context, event: bpy.types.Event) -> set[str] | None:
     if _session is None:
         return {"CANCELLED"}
     if not _session_matches_context(context):
@@ -333,6 +381,9 @@ def handle_visual_selector_event(context: bpy.types.Context, event: bpy.types.Ev
     if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
         cleanup_visual_selector_resources()
         return {"CANCELLED"}
+    if event.type == "TIMER":
+        _tag_redraw(context.area)
+        return {"RUNNING_MODAL", "PASS_THROUGH"}
     if _event_has_modifier(event):
         return {"RUNNING_MODAL", "PASS_THROUGH"}
     if event.type == "SPACE" and event.value == "PRESS":
@@ -359,9 +410,6 @@ def handle_visual_selector_event(context: bpy.types.Context, event: bpy.types.Ev
         _scroll_frame_grid(event)
         _tag_redraw(context.area)
         return {"RUNNING_MODAL"}
-    if event.type == "TIMER":
-        _tag_redraw(context.area)
-        return {"RUNNING_MODAL"}
     if _event_should_pass_through(event):
         return {"RUNNING_MODAL", "PASS_THROUGH"}
     return None
@@ -380,10 +428,6 @@ def active_workspace_clip_readonly(context: bpy.types.Context) -> tuple[Any | No
     if clip_index < 0 or clip_index >= len(workspace.clips):
         return workspace, None
     return workspace, workspace.clips[clip_index]
-
-
-def effective_preview_label(workspace: Any, clip: Any) -> str:
-    return getattr(clip, "preview_mode", "SOLID")
 
 
 def _session_matches_context(context: bpy.types.Context) -> bool:
@@ -505,7 +549,7 @@ def _handle_click(context: bpy.types.Context, x: float, y: float) -> None:
             if cell.index < 0 or cell.index >= len(clip.frames):
                 return
             if workspace.selector_mode == "EDIT":
-                clip.frames[cell.index].selected = not clip.frames[cell.index].selected
+                bpy.ops.spritesheet.frame_toggle_selection(index=cell.index)
             else:
                 _set_play_mode_current_frame(workspace, clip, cell.index)
             return
@@ -606,11 +650,12 @@ def _draw_preview_image(gpu: Any, batch_for_shader: Any, session: VisualSelector
     if not os.path.isfile(absolute_path):
         return
     try:
-        image = session.images.get(absolute_path)
+        image = _load_preview_image(session, absolute_path)
         if image is None:
-            image = bpy.data.images.load(absolute_path, check_existing=True)
-            session.images[absolute_path] = image
+            return
+        start = time.perf_counter()
         texture = gpu.texture.from_image(image)
+        _record_texture_from_image(session, time.perf_counter() - start)
         draw_rect = _image_fit_rect(image, rect)
         shader = gpu.shader.from_builtin("IMAGE")
         vertices = (
@@ -626,10 +671,12 @@ def _draw_preview_image(gpu: Any, batch_for_shader: Any, session: VisualSelector
         shader.uniform_sampler("image", texture)
         batch.draw(shader)
         gpu.state.blend_set("NONE")
-    except Exception:
+    except Exception as exc:
+        debug_log("Preview image draw failed", exc)
         try:
             gpu.state.blend_set("NONE")
-        except Exception:
+        except Exception as reset_exc:
+            debug_log("GPU blend reset failed", reset_exc)
             pass
         return
 
@@ -655,13 +702,34 @@ def _cached_image_or_none(session: VisualSelectorSession, path: str) -> Any | No
     if not os.path.isfile(absolute_path):
         return None
     try:
-        image = session.images.get(absolute_path)
-        if image is None:
-            image = bpy.data.images.load(absolute_path, check_existing=True)
-            session.images[absolute_path] = image
-        return image
-    except Exception:
+        return _load_preview_image(session, absolute_path)
+    except Exception as exc:
+        debug_log("Preview image lookup failed", exc)
         return None
+
+
+def _load_preview_image(session: VisualSelectorSession, absolute_path: str) -> Any | None:
+    image = session.images.get(absolute_path)
+    if image is not None:
+        return image
+    image = bpy.data.images.load(absolute_path, check_existing=True)
+    try:
+        image.reload()
+    except Exception as exc:
+        debug_log(f"Preview image reload failed for {absolute_path}", exc)
+    session.images[absolute_path] = image
+    return image
+
+
+def _record_texture_from_image(session: VisualSelectorSession, elapsed_seconds: float) -> None:
+    session.texture_from_image_calls += 1
+    session.texture_from_image_seconds += max(0.0, elapsed_seconds)
+    if debug_enabled() and session.texture_from_image_calls % 120 == 0:
+        debug_log(
+            "gpu.texture.from_image profile "
+            f"calls={session.texture_from_image_calls} "
+            f"seconds={session.texture_from_image_seconds:.6f}"
+        )
 
 
 def _draw_rect(gpu: Any, batch_for_shader: Any, rect: Rect, color: tuple[float, float, float, float]) -> None:

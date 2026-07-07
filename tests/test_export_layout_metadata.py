@@ -8,6 +8,7 @@ from spritesheet_frame_selector.export.layout import (
     frame_rect,
     sheet_dimensions,
 )
+from spritesheet_frame_selector.export.composer import _paste_pixels
 from spritesheet_frame_selector.export.metadata import build_spritesheet_metadata
 from spritesheet_frame_selector.export.sequence import export_individual_frames
 
@@ -92,15 +93,55 @@ class ExportLayoutMetadataTests(unittest.TestCase):
 
             sequence_folder = os.path.join(temp_dir, "spritesheet_frames")
             os.makedirs(sequence_folder)
-            old_path = os.path.join(sequence_folder, "spritesheet_frame_000001.png")
+            old_path = os.path.join(sequence_folder, "spritesheet_frame_001.png")
+            legacy_six_digit_path = os.path.join(sequence_folder, "spritesheet_frame_000001.png")
             with open(old_path, "wb") as handle:
                 handle.write(b"old")
+            with open(legacy_six_digit_path, "wb") as handle:
+                handle.write(b"legacy")
 
             export_individual_frames(source_paths, sequence_folder, "spritesheet")
 
-            self.assertFalse(os.path.exists(old_path))
+            self.assertTrue(os.path.exists(legacy_six_digit_path))
             self.assertTrue(os.path.exists(os.path.join(sequence_folder, "spritesheet_frame_001.png")))
             self.assertTrue(os.path.exists(os.path.join(sequence_folder, "spritesheet_frame_002.png")))
+
+    def test_individual_frame_limit_fails_before_creating_output(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            sequence_folder = os.path.join(temp_dir, "missing_folder")
+
+            with self.assertRaisesRegex(ValueError, "up to 999 frames"):
+                export_individual_frames(["/tmp/source.png"] * 1000, sequence_folder, "spritesheet")
+
+            self.assertFalse(os.path.exists(sequence_folder))
+
+    def test_paste_pixels_copies_rows_to_top_left_rect(self):
+        canvas = [0.0] * (4 * 4 * 4)
+        source = []
+        for pixel in range(4):
+            value = float(pixel + 1)
+            source.extend([value, value, value, 1.0])
+
+        _paste_pixels(
+            canvas,
+            canvas_width=4,
+            canvas_height=4,
+            source_pixels=source,
+            dest_x=1,
+            dest_y_top=1,
+            width=2,
+            height=2,
+        )
+
+        def pixel_at(x, y_bottom):
+            start = (y_bottom * 4 + x) * 4
+            return canvas[start : start + 4]
+
+        self.assertEqual(pixel_at(1, 1), [1.0, 1.0, 1.0, 1.0])
+        self.assertEqual(pixel_at(2, 1), [2.0, 2.0, 2.0, 1.0])
+        self.assertEqual(pixel_at(1, 2), [3.0, 3.0, 3.0, 1.0])
+        self.assertEqual(pixel_at(2, 2), [4.0, 4.0, 4.0, 1.0])
+        self.assertEqual(pixel_at(0, 0), [0.0, 0.0, 0.0, 0.0])
 
 
 if __name__ == "__main__":

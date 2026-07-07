@@ -39,6 +39,12 @@ def safe_path_part(value: str) -> str:
     return cleaned.strip("._") or "unnamed"
 
 
+def safe_file_prefix(value: str, fallback: str = "spritesheet") -> str:
+    """Return a filesystem-safe basename prefix compatible with cache names."""
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", value.strip())
+    return cleaned.strip("._") or fallback
+
+
 def is_managed_cache_folder(path: str) -> bool:
     if not path:
         return False

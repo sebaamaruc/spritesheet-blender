@@ -18,6 +18,7 @@ from .operators.export import SPRITESHEET_OT_export_spritesheet
 from .operators.preview import (
     SPRITESHEET_OT_preview_clear_cache,
     SPRITESHEET_OT_preview_generate,
+    SPRITESHEET_OT_preview_regenerate,
     SPRITESHEET_OT_preview_size_preset,
 )
 from .operators.playback import (
@@ -84,6 +85,7 @@ CLASSES = (
     SPRITESHEET_OT_clip_included_collection_remove,
     SPRITESHEET_OT_export_spritesheet,
     SPRITESHEET_OT_preview_generate,
+    SPRITESHEET_OT_preview_regenerate,
     SPRITESHEET_OT_preview_clear_cache,
     SPRITESHEET_OT_preview_size_preset,
     SPRITESHEET_OT_visual_selector_open,
@@ -131,18 +133,11 @@ def _unregister_file_load_handler() -> None:
 
 
 def register() -> None:
-    """Register classes and scene properties defensively."""
+    """Register classes and scene properties, surfacing registration errors."""
     _register_file_load_handler()
     for cls in CLASSES:
-        if cls in _registered_classes:
-            continue
-        try:
-            bpy.utils.register_class(cls)
-        except ValueError:
-            if cls not in _registered_classes:
-                _registered_classes.append(cls)
-        else:
-            _registered_classes.append(cls)
+        bpy.utils.register_class(cls)
+        _registered_classes.append(cls)
 
     _register_scene_properties()
 

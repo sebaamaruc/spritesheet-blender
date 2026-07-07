@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from array import array
 from dataclasses import dataclass
 import os
 
-from .layout import frame_rect, sheet_dimensions
+from .layout import frame_rect, sheet_dimensions, validate_sheet_dimension_limit
 
 
 @dataclass(frozen=True)
@@ -39,10 +40,13 @@ def compose_spritesheet_png(
         padding,
         margin,
     )
+    dimension_error = validate_sheet_dimension_limit(dimensions)
+    if dimension_error:
+        return ComposeResult(False, dimension_error)
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     alpha = 0.0 if transparent else 1.0
-    canvas = [0.0, 0.0, 0.0, alpha] * (dimensions.width * dimensions.height)
+    canvas = array("f", [0.0, 0.0, 0.0, alpha]) * (dimensions.width * dimensions.height)
     loaded_images = []
     sheet_image = None
 
@@ -59,7 +63,8 @@ def compose_spritesheet_png(
                     f"Frame size mismatch: {os.path.basename(frame_path)}",
                 )
 
-            source_pixels = list(image.pixels)
+            source_pixels = array("f", [0.0]) * len(image.pixels)
+            image.pixels.foreach_get(source_pixels)
             rect = frame_rect(index, frame_width, frame_height, columns, padding, margin)
             _paste_pixels(
                 canvas,
@@ -96,19 +101,24 @@ def compose_spritesheet_png(
 
 
 def _paste_pixels(
-    canvas: list[float],
+    canvas,
     canvas_width: int,
     canvas_height: int,
-    source_pixels: list[float],
+    source_pixels,
     dest_x: int,
     dest_y_top: int,
     width: int,
     height: int,
 ) -> None:
-    """Paste source pixels into canvas; rect coordinates are top-left based."""
+    """Paste source pixels into canvas; rect coordinates are top-left based.
+
+    ``canvas``/``source_pixels`` accept any mutable sequence supporting slice
+    assignment from a same-type slice (``list`` or ``array.array('f')``).
+    """
     dest_y_bottom = canvas_height - dest_y_top - height
     for y in range(height):
-        for x in range(width):
-            source_index = (y * width + x) * 4
-            dest_index = ((dest_y_bottom + y) * canvas_width + dest_x + x) * 4
-            canvas[dest_index : dest_index + 4] = source_pixels[source_index : source_index + 4]
+        source_start = y * width * 4
+        source_end = source_start + width * 4
+        dest_start = ((dest_y_bottom + y) * canvas_width + dest_x) * 4
+        dest_end = dest_start + width * 4
+        canvas[dest_start:dest_end] = source_pixels[source_start:source_end]

@@ -10,100 +10,71 @@ Proyecto: spritesheet-blender
 
 Este proyecto usa Project Continuity System (PCS) para persistir contexto operativo dentro del repositorio.
 
-## PCS
+## PCS (Project Continuity System)
 
-Antes de actuar, leer en este orden:
-
-1. `AGENTS.md`
-2. `.context/agent_context.md`
-3. `.context/index.md`
-
-PCS define el estado operativo actual, el plan activo y el proximo paso.
-Las reglas de dominio de este archivo siguen aplicando segun la tarea.
-
-Validar no es cerrar.
-No ejecutar `pcs close`, archivar planes ni marcar `cerrado` sin instruccion explicita de cierre del usuario.
-
-## Lectura Obligatoria Al Iniciar
-
-Estas lecturas se aplican despues de reconstruir el contexto PCS. Todo agente debe leer, en este orden:
+Para el arranque, proteccion del contexto activo y cierre de PCS, se referencia la guia detallada: `docs/specs/pcs-agent-usage.md`.
+Antes de comenzar, lee en orden:
 
 1. `AGENTS.md`
 2. `.context/agent_context.md`
 3. `.context/index.md`
 
-Leer otros archivos solo si la tarea activa lo requiere.
-
-## Fuentes De Verdad
-
-- Estado actual: `.context/agent_context.md`
-- Handoff inmediato: `.context/handoff.md`
-- Decisiones vigentes: `.context/decisions.md`
-- Historial append-only: `.context/worklog.jsonl`
-- Indice de lectura: `.context/index.md`
-- Planes: `docs/plans/`
-- Especificaciones: `docs/specs/`
-- Arquitectura: `docs/architecture/`
-- Disenos: `docs/design/`
-- Archivo: `docs/archive/`
-
-## Formato De Rutas En PCS
-
-- Usar siempre rutas repo-relativas puras: `docs/plans/foo.md`.
-- No usar enlaces `file://`.
-- No usar enlaces Markdown para rutas internas PCS.
-- En tablas y secciones PCS, envolver rutas internas con backticks.
-- Todo plan activo debe vivir en `docs/plans/` y referenciarse como ruta repo-relativa.
-
-## Politica Planner/Executor
-
-Crear o guardar un plan en `docs/plans/` no lo convierte en aprobado.
-
-Si el plan fue creado para revision del usuario, debe quedar como plan propuesto:
-
-- `Estado: propuesto`
-- `Autoridad: pendiente`
-- `Modo de ejecucion: pendiente`
-
-Un plan propuesto no debe aparecer como `Plan Activo` en `.context/agent_context.md`. En ese estado, el proximo paso debe ser revisar/aprobar el plan.
-
-Cuando el usuario aprueba un plan en el chat con una frase como "aprobado", "plan aprobado", "guarda el plan" o equivalente, el agente planner debe persistirlo como Plan Activo PCS aprobado y detenerse.
-
-Ese paso debe:
-
-- guardar el plan en `docs/plans/`
-- declarar `Estado: aprobado`
-- declarar `Autoridad: usuario`
-- declarar `Modo de ejecucion: ejecutar sin replanificar`
-- actualizar `Plan Activo` en `.context/agent_context.md`
-- actualizar tarea activa y proximo paso para que otro agente ejecute el plan
-- agregar el plan en `.context/index.md`
-- actualizar `.context/handoff.md`
-- agregar evento append-only `plan_approved` en `.context/worklog.jsonl`
-
-No implementar el plan en el mismo turno salvo instruccion explicita del usuario.
-
-Si `.context/agent_context.md` declara un `Plan Activo` con una ruta `docs/plans/*.md`, ese plan es la autoridad operativa.
-
-Un agente ejecutor debe:
-
-- leer el plan activo antes de implementar
-- ejecutar la fase o proximo paso indicado
-- no crear un plan nuevo
-- no reemplazar el plan activo
-- no pedir aprobacion para un plan alternativo
-
-Si el plan activo parece incorrecto, contradictorio o bloqueado, detenerse y registrar el bloqueo en `.context/handoff.md`. Cambiar un plan activo requiere instruccion explicita del usuario o de un agente planificador autorizado.
+Validar no es cerrar. No ejecutes `pcs close`, no archives planes ni marques planes como `cerrado` sin instruccion explicita del usuario.
 
 ## Reglas Locales Criticas
 
-- No depender del historial del chat.
-- Reconstruir contexto desde archivos antes de trabajar.
-- Mantener `.context/` breve y operativo.
-- Mantener documentos largos en `docs/`.
-- No duplicar informacion entre archivos; referenciar la fuente de verdad.
-- No editar retroactivamente `.context/worklog.jsonl`.
-- No implementar cambios fuera del alcance solicitado.
+### Flujo de Trabajo y PCS
+- No dependas del historial del chat. Reconstruye contexto desde archivos de PCS.
+- Manten `.context/` breve y operativo. Documentos largos van en `docs/`.
+- No dupliques informacion; referencia las fuentes de verdad.
+- No edites retroactivamente `.context/worklog.jsonl`.
+- No implementes cambios fuera del alcance solicitado.
+
+### Reglas de Dominio (spritesheet-blender)
+- **Workspace como Raiz**: Toda propiedad persistida y de configuracion (export settings, default camera/collections) debe vivir bajo el workspace en `Scene.spritesheet_state.workspaces`.
+- **Nombres de Clips Unicos**: No se permiten nombres duplicados de clips en un mismo workspace. Al crear o renombrar, agregar automaticamente sufijo numerico incremental.
+- **Rango de Frames**: Se prohiben frames negativos (`min=0` en propiedades `frame_start` y `frame_end`).
+- **Nombres de Salida**: Los frames individuales renderizados se nombran secuencialmente por su orden de exportacion (`001`, `002`), no con el frame nativo de Blender.
+- **Transparencia**: Forzar y restaurar `RGBA` y profundidad de `8` bits durante render final con export transparente.
+
+### Reglas de Build, Test y Sandbox
+- **Compilacion**: Ejecutar compilacion con `python3 -m compileall spritesheet_frame_selector` para validar sintaxis.
+- **Tests**: Ejecutar tests con `python3 -m unittest discover -s tests`.
+- **Limites Fisicos**: Limitar la exportacion de frames individuales a un maximo de 999 por ejecucion.
+- **Blender Sandbox**: Blender en background crashea en Metal al inicializarse en este sandbox. Las pruebas que dependan de renderizado o GUI real se deben validar manualmente o correr en entornos no sandboxed si es posible.
+
+### Reglas de Seguridad y Buenas Practicas
+- **Modificacion de UI/Seleccion**: No mutar propiedades de seleccion directamente en archivos de UI (`ui/visual_selector.py`). Siempre delegar al operador registrado `bpy.ops.spritesheet.frame_toggle_selection` para mantener la sincronizacion del playback preview.
+- **Draw Handlers**: Todo handler de dibujo en view_3d debe cerrarse o limpiarse limpiamente ante eventos `ReferenceError` o al cambiar de escena / archivo.
+
+## Mapa de Lectura y Docs de Dominio
+
+### Router por Tipo de Tarea
+Segun la tarea asignada, lee prioritariamente los siguientes documentos:
+
+- **Modificaciones de Modelado, Workspaces y Clips**:
+  - `docs/architecture/addon_architecture.md` (Estructura del modelo)
+  - `docs/specs/workspace_root_decisions.md` (Reglas del workspace como raiz)
+- **UI del Selector Modal, Teclado, Playback**:
+  - `docs/design/visual_selector_strategy.md` (Estrategia modal y dibujo)
+  - `docs/specs/selector_modal_preview_modes_spike.md` (Visor y UI)
+- **Generacion de Previews o Viewport OpenGL**:
+  - `docs/plans/reinicio-v2-fase-6b0-preview-camera-viewport.md` (Fuerzo de Camera View)
+- **Render Final, Composer de Spritesheets, JSON**:
+  - `docs/specs/mvp_v2.md` (Requisitos del atlas)
+  - `docs/plans/reinicio-v2-fase-6c-render-cache-final.md` (Detalles de renderizado)
+- **Resolver Fallos de Auditoria Tecnica**:
+  - `docs/technical-audit.md` (Lista completa de hallazgos C/A/M/B)
+  - `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md` (Rector de correcciones)
+- **Ejecucion de Validaciones**:
+  - `docs/specs/validation_plan.md` (Plan de no regresion y pruebas manuales)
+
+### Inventario Breve de Docs de Dominio
+- `docs/specs/PROJECT_VISION.md`: Filosofia de diseno de multi-clips y preview.
+- `docs/specs/product_requirements.md`: Objetivos generales del addon V2.
+- `docs/specs/mvp_v2.md`: Definicion de alcance minimo para V2.
+- `docs/architecture/addon_architecture.md`: Estructura de carpetas, modulos y registro del addon.
+- `docs/technical-audit.md`: Analisis detallado de fallas del Workspace V1.
 
 ## Documentacion Fuente
 
@@ -136,52 +107,15 @@ No actualizar contexto operativo cuando:
 - existe un `Plan Activo` y la tarea solicitada no pertenece a ese plan
 
 Si una tarea lateral debe quedar registrada, agregar como maximo un evento append-only a `.context/worklog.jsonl` o pedir confirmacion antes de tocar contexto operativo.
+Para registrar una tarea lateral con PCS, usar `pcs update --scope side` o un draft con `Scope: side`.
 
-## Criterios De Finalizacion
+Registrar solo cambios utiles para continuidad: `.context/agent_context.md` es estado actual, `.context/handoff.md` es transferencia inmediata, `.context/worklog.jsonl` es historial relevante y `.context/decisions.md` guarda decisiones conceptuales vigentes. No registrar borradores, propuestas no aprobadas, sync sin cambio relevante ni normalizaciones triviales.
+Usar `policy_updated` solo para cambios conceptuales de reglas PCS; usar `context_synced` solo para sync mecanico registrado explicitamente.
 
-Una tarea no se considera terminada hasta que:
+## Cierre PCS
 
-- el entregable solicitado exista
-- las validaciones aplicables hayan sido ejecutadas o justificadas
-- `.context/agent_context.md` refleje el nuevo estado cuando corresponda
-- `.context/handoff.md` indique el proximo paso o que no hay handoff activo
-- `.context/worklog.jsonl` tenga un evento relevante
+Validar no es cerrar. Un agente no debe ejecutar `pcs close`, archivar planes ni marcar `cerrado` salvo instruccion explicita de cierre del usuario, como "cierra PCS", "cierra y archiva el plan" o "ejecuta pcs close".
 
-## Archivado Obligatorio De Planes
-
-Los planes completados, cerrados, reemplazados u obsoletos no se eliminan.
-
-Archivar un plan significa mover el archivo desde `docs/plans/` hacia `docs/archive/`, preservando su contenido operativo. No significa borrar el archivo, recrearlo vacio ni reemplazarlo por un resumen.
-
-Reglas obligatorias:
-
-- No usar `Delete File` sobre `docs/plans/*.md` salvo instruccion explicita del usuario que pida borrar ese archivo.
-- No eliminar planes para limpiar el repositorio, reducir ruido o evitar duplicados historicos.
-- No borrar historial operativo de planes cerrados; el historial se conserva moviendo el documento a `docs/archive/`.
-- Al archivar un plan, actualizar las referencias PCS que correspondan: `.context/index.md`, `.context/agent_context.md`, `.context/handoff.md` y `.context/worklog.jsonl`.
-- Registrar el archivado con un evento append-only en `.context/worklog.jsonl`, usando un tipo como `plan_archived`, `plan_closed` o equivalente.
-- Si existe un conflicto entre borrar y archivar, archivar siempre.
-- La unica excepcion es una instruccion explicita del usuario para eliminar un plan concreto; aun asi, registrar el evento en `.context/worklog.jsonl`.
-
-## Ciclo De Vida De Planes Y Validacion
-
-Implementado, validado y cerrado son estados distintos. Un plan no se considera completado solo porque el codigo, documento o cambio solicitado fue escrito.
-
-Estados recomendados para `Estado De Ejecucion` en planes:
-
-- `pendiente`: el plan esta aprobado pero aun no se implemento.
-- `implementado`: los cambios fueron realizados, pero falta validacion completa.
-- `correcciones requeridas`: una revision o validacion encontro problemas dentro del mismo plan.
-- `validado`: los criterios de aceptacion y validaciones esperadas pasaron.
-- `listo para cierre`: implementacion y validacion final pasaron, pero aun falta actualizar PCS.
-- `cerrado`: PCS fue actualizado con estado final, handoff y worklog.
-
-Reglas obligatorias:
-
-- No marcar `Estado De Ejecucion` como `Completado`, `cerrado` o equivalente antes de validacion final y cierre PCS.
-- Si una revision detecta problemas sobre la implementacion de un plan, mantener el mismo plan activo y marcarlo como `correcciones requeridas`; no crear una tarea nueva salvo instruccion explicita del usuario.
-- Si el agente solo implemento cambios, debe dejar el estado como `implementado` o `correcciones requeridas`, no como cerrado.
-- Si el agente valida cambios pero no actualiza PCS, debe dejar el estado como `validado` o `listo para cierre`, no como cerrado.
-- La Fase de Cierre PCS debe actualizar `.context/agent_context.md`, `.context/handoff.md` y `.context/worklog.jsonl` para reflejar el estado final.
+Si el usuario solo dice "aprobado", "validado", "se ve bien", "procede" o similar, dejar el plan como `validado` o `listo para cierre` y esperar cierre explicito.
 
 Si la tarea implica actualizar, validar, reparar o cerrar PCS, leer `docs/specs/pcs-agent-usage.md` antes de actuar.

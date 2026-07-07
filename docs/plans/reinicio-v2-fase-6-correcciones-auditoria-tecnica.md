@@ -3,7 +3,7 @@
 Estado: aprobado (revision 2, revisada por arquitectura)
 Autoridad: usuario
 Modo de ejecucion: ejecutar sin replanificar
-Estado De Ejecucion: pendiente
+Estado De Ejecucion: implementado; validacion Blender GUI pendiente
 
 ## Referencia Superior
 
@@ -14,6 +14,10 @@ Estado De Ejecucion: pendiente
 - `docs/archive/reinicio-v2-fase-5-workspace-root-vertical-slices.md`
 - `docs/archive/reinicio-v2-fase-5g-export-spritesheet-json.md`
 - `docs/plans/reinicio-v2-fase-6b0-preview-camera-viewport.md`
+- `docs/plans/reinicio-v2-fase-6b-preview-alpha-estado-visual.md`
+- `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md`
+- `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md`
+- `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md`
 - `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`
 
 ## Fuente Principal
@@ -149,10 +153,14 @@ Objetivo: eliminar condiciones donde Blender parece congelado, el overlay queda 
 Hitos secuenciales (el hito 1 se valida antes de continuar):
 
 - **Hito 1 (bloqueante):** C1, C2, B5. Es el nucleo critico; nada mas entra hasta que su validacion Blender pase.
-- **Hito 2:** M3, M9, B6 (solo modulos selector/playback), B7, B10, M10 (perfilado y decision, no implementacion especulativa).
+- **Hito 2:** M3, M9, B6 (solo modulos selector/playback), B7, B10, M10 (perfilado y decision, no implementacion especulativa) y el hallazgo runtime nuevo `P1-playback-selection-snapshot`.
 - **Hito 3:** M6 (scroll). Es una feature, no un fix; si su implementacion crece, se separa en subplan propio sin bloquear el cierre de los hitos 1-2.
 
 Argumento: C1 y C2 son los fallos de peor impacto para el usuario. El resto comparte superficie tecnica (sesion del selector y controlador de playback) y conviene tratarlo mientras se toca ese lifecycle, pero nunca a costa de retrasar el hito 1.
+
+Hallazgo runtime nuevo:
+
+- `P1-playback-selection-snapshot`: no estaba contemplado explicitamente por `docs/technical-audit.md`. Despues de cambiar seleccion, el playback podia seguir reproduciendo el snapshot anterior de `frame_numbers`/`preview_paths`. Se corrigio refrescando la sesion activa cuando cambian operadores de seleccion y enroutando clicks de celdas por `spritesheet.frame_toggle_selection`, alineado con B7.
 
 ### Fase 6c - Decision Y Ejecucion Del Render Cache Final
 
@@ -214,6 +222,10 @@ Objetivo: verificar que todos los IDs quedaron corregidos, diferidos con razon o
 
 Cubre: reconciliacion del ledger completo (C1-C2, A1-A5, M1-M10, B1-B12), los puntos no verificados en runtime que sigan pendientes, y la seccion "Lo que no pude verificar" de la auditoria.
 
+Plan ejecutable: `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md`.
+
+Estado: implementado en verificacion documental/automatica; validacion Blender GUI pendiente. Fase 7 no queda habilitada hasta validar 6d/6e/6f en GUI o registrar limitacion aceptada por el usuario.
+
 ## Ledger De Cobertura
 
 Unico registro de estado por hallazgo. Cada handoff de subplan actualiza su columna Estado (`pendiente | en subplan <id> | corregido | diferido: <razon> | no aplica: <evidencia>`). La Fase 6f reconcilia esta tabla contra el codigo.
@@ -221,35 +233,36 @@ Unico registro de estado por hallazgo. Cada handoff de subplan actualiza su colu
 | ID | Severidad | Subfase | Estado |
 |---|---|---|---|
 | P1-preview-camera-view | alto runtime | 6b0 | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6b0-preview-camera-viewport.md` |
-| C1 | critico | 6a hito 1 | implementado en `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md`; validacion Blender pendiente |
-| C2 | critico | 6a hito 1 | implementado en `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md`; validacion Blender pendiente |
-| A1 | alto | 6c | pendiente (D1) |
-| A2 | alto | 6b | pendiente |
-| A3 | alto | 6d | pendiente |
-| A4 | alto | 6b | pendiente |
-| A5 | alto | 6d | pendiente (D4) |
-| M1 | medio | 6b | pendiente |
-| M2 | medio | 6b | pendiente |
-| M3 | medio | 6a hito 2 | pendiente |
-| M4 | medio | 6b | pendiente (D2) |
-| M5 | medio | 6e | pendiente |
-| M6 | medio | 6a hito 3 | implementado en `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md`; validacion Blender GUI pendiente |
-| M7 | medio | 6e | pendiente |
-| M8 | medio | 6e | pendiente |
-| M9 | medio | 6a hito 2 | pendiente |
-| M10 | medio (no verificado) | 6a hito 2 | pendiente (perfilado) |
-| B1 | bajo | 6c | pendiente |
-| B2 | bajo | 6d | pendiente |
-| B3 | bajo | 6e | pendiente |
-| B4 | bajo | 6e | pendiente |
-| B5 | bajo | 6a hito 1 | implementado en `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md`; validacion Blender pendiente |
-| B6 | bajo | 6a hito 2 + 6e | pendiente (dividido) |
-| B7 | bajo | 6a hito 2 | pendiente |
+| C1 | critico | 6a hito 1 | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md` y `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md` |
+| C2 | critico | 6a hito 1 | corregido y validado por el usuario; V5 GUI por menu no aplica bajo contrato modal visible/intencional y C2 queda cubierto por `load_pre`/`ReferenceError` |
+| A1 | alto | 6c | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6c-render-cache-final.md` |
+| A2 | alto | 6b | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6b-preview-alpha-estado-visual.md` |
+| A3 | alto | 6d | implementado en `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md`; validacion Blender GUI pendiente |
+| A4 | alto | 6b | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6b-preview-alpha-estado-visual.md` |
+| A5 | alto | 6d | implementado en `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md` (D4 nivel 1); validacion Blender GUI pendiente |
+| M1 | medio | 6b | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6b-preview-alpha-estado-visual.md` |
+| M2 | medio | 6b | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6b-preview-alpha-estado-visual.md` |
+| M3 | medio | 6a hito 2 | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md` |
+| M4 | medio | 6b | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6b-preview-alpha-estado-visual.md` (D2) |
+| M5 | medio | 6e | implementado en `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md`; validacion Blender GUI pendiente |
+| M6 | medio | 6a hito 3 | validado por el usuario en `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md`; queda ajuste UX opcional de sensibilidad trackpad |
+| M7 | medio | 6e | implementado en `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md`; validacion Blender GUI pendiente |
+| M8 | medio | 6e | implementado en `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md`; validacion Blender GUI pendiente |
+| M9 | medio | 6a hito 2 | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md` |
+| M10 | medio (no verificado) | 6a hito 2 | medido/validado por el usuario sin evidencia para cache GPU; instrumentacion debug opt-in queda disponible en `docs/plans/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md` |
+| B1 | bajo | 6c | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6c-render-cache-final.md` |
+| B2 | bajo | 6d | implementado en `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md`; validacion Blender GUI pendiente |
+| B3 | bajo | 6e | implementado en `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md`; validacion Blender GUI pendiente |
+| B4 | bajo | 6e | implementado en `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md`; validacion Blender GUI pendiente |
+| B5 | bajo | 6a hito 1 | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md` y `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md` |
+| B6 | bajo | 6a hito 2 + 6e | corregido y validado por el usuario para selector/playback en `docs/plans/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md`; resto implementado en `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md`, validacion Blender GUI pendiente |
+| B7 | bajo | 6a hito 2 | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md` |
 | B8 | bajo | Fase 7 | diferido por D3 |
-| B9 | bajo | 6b | pendiente |
-| B10 | bajo | 6a hito 2 | pendiente |
-| B11 | bajo | 6b | pendiente |
-| B12 | bajo | 6c | pendiente (desaparece con D1) |
+| B9 | bajo | 6b | clasificado en `docs/plans/reinicio-v2-fase-6b-preview-alpha-estado-visual.md`: no aplica como divergencia preview/render tras 6c; preview mantiene invalidacion por nombre visible |
+| B10 | bajo | 6a hito 2 | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md` |
+| P1-playback-selection-snapshot | alto runtime | 6a hito 2 | corregido y validado por el usuario; reconciliado en `docs/plans/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md` |
+| B11 | bajo | 6b | corregido y validado por el usuario en `docs/plans/reinicio-v2-fase-6b-preview-alpha-estado-visual.md` |
+| B12 | bajo | 6c | no aplica: desaparece con D1 implementado y validado en `docs/plans/reinicio-v2-fase-6c-render-cache-final.md` |
 
 ## Mapeo De Las Mejoras Propuestas De La Auditoria
 
@@ -305,9 +318,8 @@ La Fase 6 queda validada cuando:
 
 ## Proximo Paso Recomendado
 
-1. Revisar y aprobar el subplan propuesto `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md`.
-2. Si se aprueba, persistirlo como plan activo ejecutable bajo Fase 6 y detenerse salvo instruccion explicita de implementar.
-3. En el turno de ejecucion, ejecutar ese subplan como hito 1 bloqueante de Fase 6a, cubriendo C1, C2 y B5 con validacion Blender.
-4. Solo despues de validar el hito 1, crear o aprobar el siguiente subplan para los hitos 2 y 3 de Fase 6a (M3, M9, M10, B6 parcial, B7, B10, M6).
-
-El subplan 6a debe aplicar el contrato de este plan: copiar de `docs/technical-audit.md` el extracto operativo de cada hallazgo cubierto y declarar su interpretacion antes de implementar.
+1. Ejecutar validacion Blender GUI acumulada de `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md`, `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md` y `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md`.
+2. Confirmar A3/A5/B2: export mediano sin regresion visual, progreso visible, progreso cerrado al finalizar/fallar y fallo temprano con mas de 999 frames individuales.
+3. Confirmar M5/M8/M7/B3/B4/B6/PG-equality: activar/desactivar/reactivar addon, panel sin mensajes duplicados, preview/export normales tras consolidacion y dirty flags correctos al cambiar defaults/overrides.
+4. Si la validacion pasa, actualizar 6f y este plan rector a `validado` o `listo para cierre` segun corresponda, sin cerrar PCS ni archivar planes salvo instruccion explicita.
+5. Solo despues de esa validacion, retomar `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`.

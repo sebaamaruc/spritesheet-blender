@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
-from typing import Iterable
+from typing import Callable, Iterable
 
 import bpy
 
@@ -27,6 +27,7 @@ def render_clip_frames(
     output_folder: str,
     frame_numbers: Iterable[int],
     export_settings: bpy.types.PropertyGroup,
+    progress_callback: Callable[[], None] | None = None,
 ) -> FinalRenderResult:
     """Render selected frames to PNG files and restore touched Blender state."""
     scene = getattr(context, "scene", None)
@@ -48,6 +49,8 @@ def render_clip_frames(
     original_resolution_y = render.resolution_y
     original_percentage = render.resolution_percentage
     original_file_format = image_settings.file_format
+    original_color_mode = getattr(image_settings, "color_mode", None)
+    original_color_depth = getattr(image_settings, "color_depth", None)
     original_film_transparent = render.film_transparent
     original_use_file_extension = render.use_file_extension
 
@@ -61,6 +64,10 @@ def render_clip_frames(
             render.film_transparent = export_settings.transparent
             render.use_file_extension = True
             image_settings.file_format = "PNG"
+            if export_settings.transparent:
+                image_settings.color_mode = "RGBA"
+                if original_color_depth is not None:
+                    image_settings.color_depth = "8"
 
             for output_index, frame_number in enumerate(frame_numbers, start=1):
                 target_path = render_file_path(
@@ -78,6 +85,8 @@ def render_clip_frames(
                         frame_paths,
                         f"Final render failed for frame {frame_number}",
                     )
+                if progress_callback is not None:
+                    progress_callback()
     except Exception as exc:
         return FinalRenderResult(False, frame_paths, str(exc))
     finally:
@@ -90,5 +99,9 @@ def render_clip_frames(
         render.film_transparent = original_film_transparent
         render.use_file_extension = original_use_file_extension
         image_settings.file_format = original_file_format
+        if original_color_mode is not None:
+            image_settings.color_mode = original_color_mode
+        if original_color_depth is not None:
+            image_settings.color_depth = original_color_depth
 
     return FinalRenderResult(True, frame_paths, "Final render generated")

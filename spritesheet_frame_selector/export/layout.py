@@ -7,6 +7,15 @@ from math import ceil
 from typing import Iterable
 
 
+MAX_SHEET_DIMENSION = 16384
+"""Largest supported spritesheet width/height in pixels.
+
+Composition materializes the full sheet as an in-memory pixel buffer,
+so this bounds worst-case memory use to a documented ceiling instead of
+letting arbitrarily large exports attempt to allocate unbounded buffers.
+"""
+
+
 @dataclass(frozen=True)
 class SheetDimensions:
     width: int
@@ -62,6 +71,16 @@ def sheet_dimensions(
     width = margin * 2 + used_columns * frame_width + max(used_columns - 1, 0) * padding
     height = margin * 2 + rows * frame_height + max(rows - 1, 0) * padding
     return SheetDimensions(width=width, height=height, rows=rows)
+
+
+def validate_sheet_dimension_limit(dimensions: SheetDimensions) -> str:
+    """Return a blocking error message if the sheet exceeds ``MAX_SHEET_DIMENSION``."""
+    if dimensions.width > MAX_SHEET_DIMENSION or dimensions.height > MAX_SHEET_DIMENSION:
+        return (
+            f"Spritesheet dimensions {dimensions.width}x{dimensions.height} exceed the "
+            f"{MAX_SHEET_DIMENSION}x{MAX_SHEET_DIMENSION} limit"
+        )
+    return ""
 
 
 def frame_rect(

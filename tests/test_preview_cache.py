@@ -16,11 +16,21 @@ if "bpy" not in sys.modules:
         ),
         types=SimpleNamespace(
             Context=object,
+            Operator=object,
             PropertyGroup=object,
             Object=object,
             Collection=object,
         ),
+        props=SimpleNamespace(IntProperty=lambda **_kwargs: None),
     )
+else:
+    bpy_stub = sys.modules["bpy"]
+    if not hasattr(bpy_stub, "types"):
+        bpy_stub.types = SimpleNamespace()
+    if not hasattr(bpy_stub.types, "Operator"):
+        bpy_stub.types.Operator = object
+    if not hasattr(bpy_stub, "props"):
+        bpy_stub.props = SimpleNamespace(IntProperty=lambda **_kwargs: None)
 
 from spritesheet_frame_selector.core.cache import build_preview_cache_key, clear_preview_state
 from spritesheet_frame_selector.core.frame_sync import sync_clip_frames
@@ -32,7 +42,9 @@ from spritesheet_frame_selector.core.workspace_state import (
     default_collection_count_error,
     missing_effective_collection_names,
 )
+from spritesheet_frame_selector.operators import preview as preview_ops
 from spritesheet_frame_selector.preview import generator
+from spritesheet_frame_selector.render import renderer
 
 
 class FakeCollection(list):
@@ -54,7 +66,6 @@ def fake_frame():
         frame_number=0,
         selected=True,
         preview_path="",
-        original_index=-1,
     )
 
 
@@ -161,12 +172,11 @@ class WorkspacePreviewCacheTests(unittest.TestCase):
         self.assertNotEqual(solid, rendered)
 
     def test_effective_preview_mode_uses_clip_mode(self):
-        workspace = fake_workspace()
         clip = fake_clip()
 
         clip.preview_mode = "RENDERED"
 
-        self.assertEqual(effective_preview_mode(workspace, clip), "RENDERED")
+        self.assertEqual(effective_preview_mode(clip), "RENDERED")
 
     def test_cache_path_includes_workspace_and_clip_id(self):
         root = preview_cache_root("", temp_root=tempfile.gettempdir())
@@ -260,7 +270,7 @@ class PreviewViewportContextTests(unittest.TestCase):
 
         self.assertIsNone(generator._find_view3d_render_context(context))
 
-    def test_viewport_thumbnail_restores_shading_and_overlay(self):
+    def test_viewport_scope_restores_shading_overlay_and_camera_view(self):
         view_area = fake_view3d_area()
         context = FakeOverrideContext()
         viewport_context = generator.ViewportRenderContext(
@@ -283,7 +293,8 @@ class PreviewViewportContextTests(unittest.TestCase):
 
             generator.bpy.ops.render.opengl = fake_opengl
 
-            result = generator._write_viewport_thumbnail(context, viewport_context, "MATERIAL")
+            with generator._viewport_render_scope(viewport_context, "MATERIAL"):
+                result = generator._write_viewport_thumbnail(context, viewport_context)
         finally:
             generator.bpy.ops.render.opengl = original_opengl
 
@@ -311,7 +322,8 @@ class PreviewViewportContextTests(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(RuntimeError, "requires a 3D Viewport with RegionView3D"):
-            generator._write_viewport_thumbnail(context, viewport_context, "SOLID")
+            with generator._viewport_render_scope(viewport_context, "SOLID"):
+                generator._write_viewport_thumbnail(context, viewport_context)
 
 
 class PreviewAlphaSettingsTests(unittest.TestCase):
@@ -321,23 +333,27 @@ class PreviewAlphaSettingsTests(unittest.TestCase):
         camera = SimpleNamespace(users_collection=())
         collection = SimpleNamespace(children=())
         observed = {}
-        original_write_thumbnail = generator._write_thumbnail
+        original_writer_scope = generator._thumbnail_writer_scope
         original_visibility_scope = generator.collection_visibility_scope
         try:
-            def fake_write_thumbnail(_context, preview_mode):
-                render = context.scene.render
-                image_settings = render.image_settings
-                observed["preview_mode"] = preview_mode
-                observed["file_format"] = image_settings.file_format
-                observed["color_mode"] = image_settings.color_mode
-                observed["color_depth"] = image_settings.color_depth
-                observed["film_transparent"] = render.film_transparent
-                observed["use_file_extension"] = render.use_file_extension
-                with open(render.filepath, "wb") as handle:
-                    handle.write(b"png")
-                return True
+            @contextmanager
+            def fake_writer_scope(_context, preview_mode):
+                def write_thumbnail():
+                    render = context.scene.render
+                    image_settings = render.image_settings
+                    observed["preview_mode"] = preview_mode
+                    observed["file_format"] = image_settings.file_format
+                    observed["color_mode"] = image_settings.color_mode
+                    observed["color_depth"] = image_settings.color_depth
+                    observed["film_transparent"] = render.film_transparent
+                    observed["use_file_extension"] = render.use_file_extension
+                    with open(render.filepath, "wb") as handle:
+                        handle.write(b"png")
+                    return True
 
-            generator._write_thumbnail = fake_write_thumbnail
+                yield write_thumbnail
+
+            generator._thumbnail_writer_scope = fake_writer_scope
             generator.collection_visibility_scope = fake_visibility_scope
             with tempfile.TemporaryDirectory() as tmpdir:
                 result = generator.generate_viewport_previews(
@@ -350,7 +366,7 @@ class PreviewAlphaSettingsTests(unittest.TestCase):
                     preview_mode="RENDERED",
                 )
         finally:
-            generator._write_thumbnail = original_write_thumbnail
+            generator._thumbnail_writer_scope = original_writer_scope
             generator.collection_visibility_scope = original_visibility_scope
 
         self.assertTrue(result.success)
@@ -371,23 +387,26 @@ class PreviewAlphaSettingsTests(unittest.TestCase):
         self.assertEqual(context.scene.render.image_settings.file_format, "JPEG")
         self.assertEqual(context.scene.render.image_settings.color_mode, "RGB")
         self.assertEqual(context.scene.render.image_settings.color_depth, "16")
-        self.assertEqual(context.scene.render.image_settings.compression, 45)
 
-    def test_solid_preview_rejects_opaque_png_when_alpha_can_be_validated(self):
+    def test_solid_preview_keeps_opaque_png_as_warning_when_alpha_can_be_validated(self):
         clip = fake_clip()
         context = fake_preview_context()
         camera = SimpleNamespace(users_collection=())
         collection = SimpleNamespace(children=())
-        original_write_thumbnail = generator._write_thumbnail
+        original_writer_scope = generator._thumbnail_writer_scope
         original_visibility_scope = generator.collection_visibility_scope
         original_has_transparency = generator._preview_file_has_transparency
         try:
-            def fake_write_thumbnail(_context, _preview_mode):
-                with open(context.scene.render.filepath, "wb") as handle:
-                    handle.write(b"opaque")
-                return True
+            @contextmanager
+            def fake_writer_scope(_context, _preview_mode):
+                def write_thumbnail():
+                    with open(context.scene.render.filepath, "wb") as handle:
+                        handle.write(b"opaque")
+                    return True
 
-            generator._write_thumbnail = fake_write_thumbnail
+                yield write_thumbnail
+
+            generator._thumbnail_writer_scope = fake_writer_scope
             generator.collection_visibility_scope = fake_visibility_scope
             generator._preview_file_has_transparency = lambda _path: False
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -403,13 +422,13 @@ class PreviewAlphaSettingsTests(unittest.TestCase):
                 generated_path = next(iter(result.frame_paths.values()))
                 file_exists = os.path.exists(generated_path)
         finally:
-            generator._write_thumbnail = original_write_thumbnail
+            generator._thumbnail_writer_scope = original_writer_scope
             generator.collection_visibility_scope = original_visibility_scope
             generator._preview_file_has_transparency = original_has_transparency
 
-        self.assertFalse(result.success)
-        self.assertEqual(result.message, "Solid preview did not produce transparent alpha")
-        self.assertFalse(file_exists)
+        self.assertTrue(result.success)
+        self.assertIn("no transparent pixels detected", result.message)
+        self.assertTrue(file_exists)
 
     def test_preview_file_has_transparency_detects_alpha_values(self):
         original_data = getattr(generator.bpy, "data", None)
@@ -444,6 +463,78 @@ class PreviewAlphaSettingsTests(unittest.TestCase):
                 delattr(generator.bpy, "data")
             else:
                 generator.bpy.data = original_data
+
+
+class PreviewCacheGcTests(unittest.TestCase):
+    def test_purge_sibling_preview_caches_keeps_current_and_unmanaged_entries(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = preview_cache_root(os.path.join(tmpdir, "scene.blend"))
+            current_key = "a" * 16
+            stale_key = "b" * 16
+            current = preview_cache_folder(root, "workspace-id", "clip-id", current_key)
+            stale = preview_cache_folder(root, "workspace-id", "clip-id", stale_key)
+            unmanaged = os.path.join(os.path.dirname(current), "manual-folder")
+            os.makedirs(current)
+            os.makedirs(stale)
+            os.makedirs(unmanaged)
+
+            preview_ops._purge_sibling_preview_caches(root, "workspace-id", "clip-id", current_key)
+
+            self.assertTrue(os.path.isdir(current))
+            self.assertFalse(os.path.exists(stale))
+            self.assertTrue(os.path.isdir(unmanaged))
+
+
+class FinalRenderAlphaSettingsTests(unittest.TestCase):
+    def test_render_clip_frames_forces_rgba_for_transparent_exports_and_restores(self):
+        context = fake_preview_context()
+        camera = SimpleNamespace(users_collection=())
+        collection = SimpleNamespace(children=())
+        export_settings = SimpleNamespace(
+            frame_width=32,
+            frame_height=48,
+            transparent=True,
+            sheet_name="sheet",
+        )
+        observed = {}
+        original_render_op = renderer.bpy.ops.render.render
+        original_visibility_scope = renderer.collection_visibility_scope
+        try:
+            def fake_render(**_kwargs):
+                render = context.scene.render
+                image_settings = render.image_settings
+                observed["file_format"] = image_settings.file_format
+                observed["color_mode"] = image_settings.color_mode
+                observed["color_depth"] = image_settings.color_depth
+                observed["film_transparent"] = render.film_transparent
+                with open(render.filepath, "wb") as handle:
+                    handle.write(b"png")
+                return {"FINISHED"}
+
+            renderer.bpy.ops.render.render = fake_render
+            renderer.collection_visibility_scope = fake_visibility_scope
+            with tempfile.TemporaryDirectory() as tmpdir:
+                result = renderer.render_clip_frames(
+                    context,
+                    fake_clip(),
+                    camera,
+                    [collection],
+                    tmpdir,
+                    [3],
+                    export_settings,
+                )
+        finally:
+            renderer.bpy.ops.render.render = original_render_op
+            renderer.collection_visibility_scope = original_visibility_scope
+
+        self.assertTrue(result.success)
+        self.assertEqual(observed["file_format"], "PNG")
+        self.assertEqual(observed["color_mode"], "RGBA")
+        self.assertEqual(observed["color_depth"], "8")
+        self.assertTrue(observed["film_transparent"])
+        self.assertEqual(context.scene.render.image_settings.file_format, "JPEG")
+        self.assertEqual(context.scene.render.image_settings.color_mode, "RGB")
+        self.assertEqual(context.scene.render.image_settings.color_depth, "16")
 
 
 class FakeOverrideContext:
@@ -522,7 +613,6 @@ class FakeScene:
                 file_format="JPEG",
                 color_mode="RGB",
                 color_depth="16",
-                compression=45,
             ),
         )
 
