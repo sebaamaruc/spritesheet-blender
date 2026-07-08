@@ -1,6 +1,6 @@
 # Context Index
 
-Ultima actualizacion: 2026-07-06
+Ultima actualizacion: 2026-07-08
 
 ## Lectura Minima
 
@@ -35,13 +35,13 @@ Leer siempre:
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
-| `docs/plans/reinicio-v2-fase-6a-selector-modal-lifecycle.md` | Hito 1 validado: C1, C2 y B5 modal/lifecycle | validado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md` | Validacion de hito 1 modal/lifecycle | validado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md` | Hito 2 validado: integridad selector/playback | validado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6a-hito3-selector-scroll.md` | Hito 3 validado: M6 scroll del selector | validado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6b0-preview-camera-viewport.md` | Previews usan camara efectiva desde Viewport | validado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6b-preview-alpha-estado-visual.md` | Hito de previews, alpha y estado visual | validado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6c-render-cache-final.md` | Eliminacion de render cache final e integracion MVP | validado | vigente | alta |
+| `docs/archive/reinicio-v2-fase-6a-selector-modal-lifecycle.md` | Hito 1 validado: C1, C2 y B5 modal/lifecycle | validado | vigente | alta |
+| `docs/archive/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md` | Validacion de hito 1 modal/lifecycle | validado | vigente | alta |
+| `docs/archive/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md` | Hito 2 validado: integridad selector/playback | validado | vigente | alta |
+| `docs/archive/reinicio-v2-fase-6a-hito3-selector-scroll.md` | Hito 3 validado: M6 scroll del selector | validado | vigente | alta |
+| `docs/archive/reinicio-v2-fase-6b0-preview-camera-viewport.md` | Previews usan camara efectiva desde Viewport | validado | vigente | alta |
+| `docs/archive/reinicio-v2-fase-6b-preview-alpha-estado-visual.md` | Hito de previews, alpha y estado visual | validado | vigente | alta |
+| `docs/archive/reinicio-v2-fase-6c-render-cache-final.md` | Eliminacion de render cache final e integracion MVP | validado | vigente | alta |
 
 ## Planes Propuestos
 
@@ -89,6 +89,6 @@ Los documentos cerrados, reemplazados u obsoletos viven en `docs/archive/`.
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
+| `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md` | Plan activo para continuar la tarea actual | activo | vigente | alta |
 | `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md` | Plan activo para continuar la tarea actual | activo | vigente | alta |
 | `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md` | Plan activo implementado; validar junto a 6d antes de Fase 7 | activo | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md` | Plan activo implementado; validar matriz acumulada antes de Fase 7 | activo | vigente | alta |

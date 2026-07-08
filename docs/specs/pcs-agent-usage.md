@@ -47,6 +47,17 @@ Si un Plan Activo contradice el codigo o queda bloqueado, detenerse, registrar e
 
 No eliminar planes en `docs/plans/*.md` con `Delete File`; archivarlos en `docs/archive/` preservando su contenido (`pcs close` lo hace automaticamente). Estados de `Estado De Ejecucion` en un plan: `pendiente` (aprobado, no implementado), `implementado` (cambios hechos, falta validar), `correcciones requeridas` (una revision encontro problemas), `validado` (criterios de aceptacion pasaron), `listo para cierre` (falta actualizar PCS), `cerrado` (PCS ya refleja el cierre). `implementado` no es `validado`; `validado` no es `cerrado`.
 
+## Ejecutor Por Fase
+
+Cada fase de un plan puede marcar `Ejecutor: no-frontera` o `Ejecutor: frontera`
+para indicar quien la implementa. Sin marca, asumir `frontera`.
+
+- `no-frontera`: cambio mecanico de espec cerrada, verificable de forma binaria.
+- `frontera`: requiere criterio, diseno o toca contratos compartidos.
+- Una fase que mezcla ambos no lleva `mixto`: se parte en dos.
+- Escalar de nivel siempre esta permitido; bajar no. Si el ejecutor falla la
+  misma verificacion dos veces, subir un nivel.
+
 ## Migracion De AGENTS.md
 
 Para reducir o actualizar un `AGENTS.md`, crear primero `.context/agents-md-audit.tmp.md` con subsistemas criticos detectados, reglas preservadas, reescritas, movidas, eliminadas y riesgos. Ese archivo es temporal, no es estado operativo PCS y no debe agregarse a `.context/index.md`, `agent_context`, `handoff` ni `worklog`.

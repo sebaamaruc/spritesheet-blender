@@ -3,7 +3,7 @@
 Estado: aprobado (revision 2, revisada por arquitectura)
 Autoridad: usuario
 Modo de ejecucion: ejecutar sin replanificar
-Estado De Ejecucion: implementado; validacion Blender GUI pendiente
+Estado De Ejecucion: implementado
 
 ## Referencia Superior
 
