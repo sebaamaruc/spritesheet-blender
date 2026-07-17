@@ -47,14 +47,27 @@ Si un Plan Activo contradice el codigo o queda bloqueado, detenerse, registrar e
 
 No eliminar planes en `docs/plans/*.md` con `Delete File`; archivarlos en `docs/archive/` preservando su contenido (`pcs close` lo hace automaticamente). Estados de `Estado De Ejecucion` en un plan: `pendiente` (aprobado, no implementado), `implementado` (cambios hechos, falta validar), `correcciones requeridas` (una revision encontro problemas), `validado` (criterios de aceptacion pasaron), `listo para cierre` (falta actualizar PCS), `cerrado` (PCS ya refleja el cierre). `implementado` no es `validado`; `validado` no es `cerrado`.
 
+## Ritual De Salida
+
+Toda sesion que mueva, renombre o archive documentos, o cierre una implementacion, termina ejecutando `pcs check` y dejandolo en verde antes de entregar el handoff. Las referencias rotas (`references missing path`) son errores que hacen fallar check, no advertencias.
+
+Si check falla, clasificar cada error en una de tres rutas:
+
+1. Mecanico (referencia a un plan movido a `docs/archive/`, tabla malformada, presupuesto de lineas excedido): reparar en la misma sesion, re-ejecutar `pcs check` y terminar solo en verde.
+2. Semantico (tarea activa o decision que ya no refleja lo implementado): generar `pcs update draft` para revision del usuario; no reescribir contexto canonico sin aprobacion.
+3. No reparable o ambiguo (no se puede determinar la correccion correcta): declararlo explicitamente en `.context/handoff.md` como pendiente o bloqueo.
+
+Un check rojo nunca se oculta ni se resuelve adivinando: o se repara o queda declarado en el handoff.
+
 ## Ejecutor Por Fase
 
-Cada fase de un plan puede marcar `Ejecutor: no-frontera` o `Ejecutor: frontera`
-para indicar quien la implementa. Sin marca, asumir `frontera`.
+Cada fase de un plan puede marcar `Ejecutor: E1`, `E2` o `E3` para indicar la
+naturaleza de la tarea. Sin marca, asumir `E3`.
 
-- `no-frontera`: cambio mecanico de espec cerrada, verificable de forma binaria.
-- `frontera`: requiere criterio, diseno o toca contratos compartidos.
-- Una fase que mezcla ambos no lleva `mixto`: se parte en dos.
+- `E1`: espec cerrada, cambio mecanico, verificacion binaria.
+- `E2`: criterio tecnico local; el que hacer esta definido, el como no.
+- `E3`: espec abierta, diseno, contratos compartidos o blast radius alto.
+- Una fase que califica en mas de un nivel lleva el mas alto, no un nivel mixto.
 - Escalar de nivel siempre esta permitido; bajar no. Si el ejecutor falla la
   misma verificacion dos veces, subir un nivel.
 
