@@ -360,3 +360,27 @@ python3 -m unittest discover -s tests
 ```
 
 Detalle de módulos y notas de ejecución: `tests/blender/README.md`.
+
+---
+
+## 10. Validacion de distribucion
+
+Actualizacion: 2026-09-22.
+
+Se repitio la matriz automatizada sobre el estado de distribucion:
+
+| Validacion | Resultado |
+|---|---|
+| `compileall` | aprobado |
+| Suite unitaria | 85/85 |
+| Suite Blender background | 141/141 |
+| Suite Blender GUI | 10/10 |
+| Validacion de manifest | aprobada |
+| Validacion de ZIP | aprobada |
+| Instalacion y activacion desde ZIP en perfil aislado | aprobada |
+
+El paquete fue generado con la CLI oficial de extensiones de Blender 5.1.1 y
+contiene exclusivamente el addon y la copia de su licencia GPL. La entrega
+fisica de teclado y raton al selector permanece como comprobacion manual
+recomendada; la logica de eventos, apertura modal y dibujo GPU estan cubiertos
+por las suites automatizadas.

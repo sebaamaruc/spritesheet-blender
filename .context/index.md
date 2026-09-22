@@ -43,11 +43,11 @@ Leer siempre:
 | `docs/archive/reinicio-v2-fase-6e-consolidacion-higiene.md` | Plan de consolidacion, registro e higiene tecnica | cerrado | vigente | alta |
 | `docs/archive/reinicio-v2-fase-6f-verificacion-integral-auditoria.md` | Plan de verificacion integral de auditoria | cerrado | vigente | alta |
 
-## Planes Propuestos
+## Planes Validados Pendientes De Cierre
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
-| `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md` | Plan propuesto para packaging y distribucion final | propuesto | diferido | alta |
+| `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md` | Resultado validado de packaging y distribucion; conservar activo hasta cierre explicito | validado | vigente | alta |
 
 ## Especificaciones
 
@@ -89,4 +89,5 @@ Los documentos cerrados, reemplazados u obsoletos viven en `docs/archive/`.
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
+| `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md` | Plan activo para continuar la tarea actual | activo | vigente | alta |
 | `docs/plans/reinicio-v2-master-plan.md` | Plan activo para continuar la tarea actual | activo | vigente | alta |

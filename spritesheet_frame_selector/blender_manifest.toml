@@ -5,6 +5,7 @@ name = "SpriteSheet Frame Selector"
 tagline = "Select animation frames visually for spritesheet export"
 maintainer = "Amaruc"
 type = "add-on"
+website = "https://github.com/sebaamaruc/spritesheet-blender"
 blender_version_min = "5.0.0"
 license = ["SPDX:GPL-3.0-or-later"]
 tags = ["Animation", "Import-Export"]

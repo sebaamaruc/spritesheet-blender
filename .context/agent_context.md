@@ -2,8 +2,8 @@
 
 PCS-Version: 1
 PCS-Template-Version: 1.1.0
-Ultima actualizacion: 2026-07-14
-Actualizado por: pcs
+Ultima actualizacion: 2026-09-22
+Actualizado por: codex
 
 ## Resumen Actual
 
@@ -13,27 +13,30 @@ El plan gobernante aprobado es `docs/plans/reinicio-v2-master-plan.md`. Este mas
 
 ## Tarea Activa
 
-Revisar y aprobar el plan de la Fase 7 para realizar la validación final en Blender GUI, empaquetado y distribución. La Fase 6 (Correcciones de Auditoría Técnica) ha sido implementada y archivada.
+Fase 7 validada y lista para cierre PCS explicito.
 
 ## Proximo Paso Recomendado
 
-Obtener la aprobación del usuario para el plan `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md` para iniciar las pruebas en Blender GUI, limpieza y empaquetado.
+Esperar instruccion explicita del usuario para cerrar y archivar la Fase 7 con pcs close.
 
 ## Estado
 
-- Fase 6 (Correcciones de Auditoria Tecnica): implementada y cerrada (archivada).
-- Fase 7 (Validacion final y distribucion): plan propuesto y listo para aprobacion.
-- Ejecucion de reinicio V2: pendiente de aprobacion de Fase 7.
+- Fase 6 implementada, validada y archivada.
+- Fase 7 validada: documentacion, licencia, packaging e instalacion completados.
+- ZIP v0.1.0 listo para publicar como release de GitHub.
 
 ## Archivos Relevantes Ahora
 
-- `docs/plans/reinicio-v2-master-plan.md`
+- `README.md`
+- `LICENSE`
+- `spritesheet_frame_selector/LICENSE`
+- `spritesheet_frame_selector/blender_manifest.toml`
 - `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`
-- `docs/specs/mvp_v2.md`
+- `docs/test-report.md`
 
 ## Plan Activo
 
-Ninguno
+`docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`
 
 ## Decisiones Vigentes Relevantes
 
@@ -60,14 +63,13 @@ Ninguno
 
 ## Riesgos Abiertos
 
-- Fase 7 puede descubrir bugs de packaging/lifecycle que requieran correcciones menores antes de distribuir.
-- Blender background dentro del sandbox crashea antes de ejecutar Python; fuera del sandbox fue rechazado por politica del entorno actual en validaciones previas.
-- La limpieza automatica de `__pycache__` generados por validacion fue rechazada por politica del entorno; no se intento una via alternativa.
+- Blender 5.0 exacto no forma parte de la matriz; la validacion se ejecuto en Blender 5.1.1.
+- Entrega fisica de teclado y raton al selector pendiente como comprobacion manual recomendada.
 
 ## Bloqueos
 
-Ninguno detectado.
+Ninguno.
 
 ## Validaciones Pendientes
 
-- Aprobar e iniciar el plan de la Fase 7 (`docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`) para proceder con la validación GUI integral y la distribución final.
+Ninguno.

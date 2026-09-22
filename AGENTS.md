@@ -41,7 +41,7 @@ Validar no es cerrar. No ejecutes `pcs close`, no archives planes ni marques pla
 - **Compilacion**: Ejecutar compilacion con `python3 -m compileall spritesheet_frame_selector` para validar sintaxis.
 - **Tests**: Ejecutar tests con `python3 -m unittest discover -s tests`.
 - **Limites Fisicos**: Limitar la exportacion de frames individuales a un maximo de 999 por ejecucion.
-- **Blender Sandbox**: Blender en background crashea en Metal al inicializarse en este sandbox. Las pruebas que dependan de renderizado o GUI real se deben validar manualmente o correr en entornos no sandboxed si es posible.
+- **Blender Runtime**: Blender 5.1.1 funciona en background y con GUI en el entorno actual. Ejecutar las suites de `tests/blender/` cuando una tarea afecte integracion real; documentar cualquier fallo especifico del entorno.
 
 ### Reglas de Seguridad y Buenas Practicas
 - **Modificacion de UI/Seleccion**: No mutar propiedades de seleccion directamente en archivos de UI (`ui/visual_selector.py`). Siempre delegar al operador registrado `bpy.ops.spritesheet.frame_toggle_selection` para mantener la sincronizacion del playback preview.

@@ -188,7 +188,8 @@ Este plan define las validaciones esperadas para reconstruir el addon V2 por fas
 - Fase 5e playback: timers, FPS y cierre durante playback.
 - Fase 5f render: render solo seleccionados y restauracion de escena.
 - Fase 5g composer/export: PNG correcto y errores controlados.
-- Fase 5h multi-clip/json: atlas, metadata y nombres duplicados.
+- Fase 5g multi-clip/json: atlas, metadata y nombres duplicados. Fase 5h queda
+  reservada para mejoras avanzadas posteriores al MVP.
 - Fase 6 distribucion: ZIP limpio, instalacion y validacion completa.
 
 ## Criterio De Validacion Final

@@ -67,7 +67,8 @@ La Fase 5 debe dividirse en subplanes porque cada vertical slice afecta diseño,
 - `docs/plans/reinicio-v2-fase-5e-playback-preview.md`
 - `docs/plans/reinicio-v2-fase-5f-render-final.md`
 - `docs/plans/reinicio-v2-fase-5g-composer-export.md`
-- `docs/plans/reinicio-v2-fase-5h-multiclip-atlas-json.md`
+- Fase 5h queda diferida para atlas avanzado: el contrato multi-clip y JSON
+  simple del MVP fue absorbido y validado en Fase 5g.
 
 Si una fase o subfase resulta demasiado amplia durante su preparacion, debe dividirse nuevamente antes de ejecutar.
 
@@ -171,7 +172,8 @@ Subplanes obligatorios:
 5. Playback preview.
 6. Render final.
 7. Composer/export.
-8. Multi-clip atlas + JSON.
+8. Mejoras avanzadas de atlas, diferidas despues del MVP. El atlas multi-clip y
+   el JSON simple obligatorios ya pertenecen a 5g.
 
 Cada subplan debe incluir:
 
