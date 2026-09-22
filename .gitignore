@@ -1,13 +1,13 @@
 # macOS
 .DS_Store
 
-# image
+# Local editor and agent settings
+.claude/
+
+# Generated exports
+out/
 *.png
-
-# data
 *.json
-
-# archive
 *.zip
 
 # Python cache

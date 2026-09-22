@@ -73,19 +73,7 @@ El export genera `<nombre>.png` y `<nombre>.json`. Si activas
 - El soporte para rutas Blender relativas (`//`) funciona en Blender 5.1.1,
   aunque puede producir un warning en consola.
 
-## Desarrollo y validacion
-
-```bash
-python3 -m compileall spritesheet_frame_selector
-python3 -m unittest discover -s tests
-/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tests/blender/run_all.py
-```
-
-La suite con ventana y sus requisitos estan descritos en
-[`tests/blender/README.md`](tests/blender/README.md). El informe de la validacion
-integral vive en [`docs/test-report.md`](docs/test-report.md).
-
-Para validar y construir el paquete con Blender:
+## Construccion del paquete
 
 ```bash
 /Applications/Blender.app/Contents/MacOS/Blender --command extension validate spritesheet_frame_selector
