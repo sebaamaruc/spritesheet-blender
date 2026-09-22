@@ -62,7 +62,7 @@ Este archivo contiene decisiones vigentes o históricamente relevantes. No reemp
 - Contexto: El reinicio V2 requiere documentacion mantenible antes de limpiar el arbol activo o crear scaffold. `docs/specs/mvp.md` mezclaba vision, alcance, arquitectura y decisiones parcialmente contradictorias, especialmente sobre JSON metadata y multi-clip.
 - Decision: Preservar el MVP original en `docs/archive/mvp-original.md`, degradar `docs/specs/mvp.md` a puntero historico y usar como contrato vigente `docs/specs/product_requirements.md`, `docs/specs/mvp_v2.md`, `docs/architecture/addon_architecture.md`, `docs/design/visual_selector_strategy.md` y `docs/specs/validation_plan.md`.
 - Consecuencia: Las fases posteriores deben planificarse contra los documentos V2. JSON simple es obligatorio para atlas multi-clip, no para export individual simple. Multi-clip debe influir el modelo desde el inicio.
-- Referencias: `docs/plans/reinicio-v2-fase-2-documentacion-base.md`, `docs/specs/mvp_v2.md`, `docs/archive/mvp-original.md`
+- Referencias: `docs/archive/reinicio-v2-fase-2-documentacion-base.md`, `docs/specs/mvp_v2.md`, `docs/archive/mvp-original.md`
 
 ---
 
@@ -74,7 +74,7 @@ Este archivo contiene decisiones vigentes o históricamente relevantes. No reemp
 - Contexto: El usuario indico que es mejor rehacer la mayoria que mantener codigo con malas practicas. La Fase 1 ya preservo el estado V1 por Git y la Fase 2 creo documentacion V2 vigente.
 - Decision: Retirar del arbol activo el addon V1, tests legacy, scratch, outputs, caches y residuos locales. Archivar metas V1 de `docs/source/` en `docs/archive/`.
 - Consecuencia: La Fase 4 debe crear un scaffold V2 limpio desde documentacion y arquitectura vigentes. El codigo V1 no debe copiarse como base estructural.
-- Referencias: `docs/plans/reinicio-v2-fase-3-limpieza-arbol-activo.md`, `archive/generated-addon-v1`, `archive/generated-addon-v1-2026-07-03`
+- Referencias: `docs/archive/reinicio-v2-fase-3-limpieza-arbol-activo.md`, `archive/generated-addon-v1`, `archive/generated-addon-v1-2026-07-03`
 
 ---
 
@@ -86,7 +86,7 @@ Este archivo contiene decisiones vigentes o históricamente relevantes. No reemp
 - Contexto: Durante la reconstruccion V2 se implementaron 5a/5b/5c con `Scene.spritesheet_state.clips` como raiz. Al revisar decisiones no documentadas de V1, el usuario confirmo que workspace no era solo una solucion tecnica sino una entidad central del producto.
 - Decision: Redisenar V2 alrededor de workspace como raiz: `Scene.spritesheet_state.workspaces -> active_workspace -> clips -> frames`. Pausar Fase 5d hasta auditar decisiones V1, actualizar documentos y decidir si refactorizar 5a/5b/5c o volver al scaffold limpio de Fase 4.
 - Consecuencia: Las fases 5a/5b/5c validadas quedan sujetas a revision arquitectonica. No se debe implementar selector visual, playback, render ni export hasta resolver workspace-root.
-- Referencias: `docs/plans/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md`, `docs/plans/reinicio-v2-fase-5a-data-model-persistencia.md`, `docs/plans/reinicio-v2-fase-5b-gestion-clips.md`, `docs/plans/reinicio-v2-fase-5c-preview-cache.md`
+- Referencias: `docs/archive/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md`, `docs/archive/reinicio-v2-fase-5a-data-model-persistencia.md`, `docs/archive/reinicio-v2-fase-5b-gestion-clips.md`, `docs/archive/reinicio-v2-fase-5c-preview-cache.md`
 
 ---
 
@@ -122,7 +122,7 @@ Este archivo contiene decisiones vigentes o históricamente relevantes. No reemp
 - Contexto: W3 comparo refactorizar la V2 actual 5a/5b/5c versus volver al scaffold limpio de Fase 4. La implementacion actual cuelga clips y export settings directamente de `Scene.spritesheet_state`, mientras el contrato V2 vigente exige `Scene.spritesheet_state.workspaces -> active_workspace -> clips`.
 - Decision: Rehacer las slices 5a/5b/5c desde el scaffold limpio de Fase 4, reaprovechando solo helpers puros y patrones validados cuando encajen con workspace-root.
 - Consecuencia: Los planes 5a/5b/5c existentes quedan como historial validado pero no como base arquitectonica vigente. W4 debe replanificar subplanes workspace-root antes de continuar con 5d.
-- Referencias: `docs/specs/workspace_root_refactor_evaluation.md`, `docs/plans/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md`
+- Referencias: `docs/specs/workspace_root_refactor_evaluation.md`, `docs/archive/reinicio-v2-fase-5c1-auditoria-decisiones-workspace-root.md`
 
 ---
 
@@ -134,4 +134,4 @@ Este archivo contiene decisiones vigentes o históricamente relevantes. No reemp
 - Contexto: La validacion manual del selector/playback mostro que los thumbnails de 64px no sirven como preview real y que el playback solo avanza estado sin mostrar claramente el resultado. El usuario decidio avanzar hacia superficie modal, guardar `selector_mode` en `.blend`, soportar previews segun solid/textura/rendered y mostrar una vista grande del frame actual.
 - Decision: El siguiente trabajo debe insertar una fase correctiva antes de render final: selector modal/custom con visor grande, contornos visuales para seleccionado/playback, modo persistente `EDIT`/`PLAY` por workspace y preview modes persistentes con resolucion efectiva workspace+clip.
 - Consecuencia: No avanzar a `5f` render final hasta ejecutar `5e1-selector-playback-ux`. `preview_mode` debe entrar en cache key y la validacion de `SOLID`/`MATERIAL` requiere Blender GUI porque OpenGL/viewport no funciona en background.
-- Referencias: `docs/specs/selector_modal_preview_modes_spike.md`, `docs/plans/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md`
+- Referencias: `docs/specs/selector_modal_preview_modes_spike.md`, `docs/archive/reinicio-v2-fase-5e1-spike-selector-modal-preview-modes.md`

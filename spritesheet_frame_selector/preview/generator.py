@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from array import array
 from dataclasses import dataclass
 import os
 from typing import Callable, Iterable
@@ -149,6 +150,25 @@ def _thumbnail_writer_scope(context: bpy.types.Context, preview_mode: str):
         yield lambda: _write_viewport_thumbnail(context, viewport_context)
 
 
+def _apply_shading_type(shading: Any, preview_mode: str) -> None:
+    """Set the viewport shading mode, reporting engine limits in plain language.
+
+    ``View3DShading.type`` is filtered by the scene render engine: Workbench
+    offers only WIREFRAME/SOLID/RENDERED, so requesting MATERIAL there raises a
+    raw ``TypeError`` that is useless to the user.
+    """
+    try:
+        shading.type = preview_mode
+    except TypeError as exc:
+        engine = getattr(getattr(getattr(bpy, "context", None), "scene", None), "render", None)
+        engine_name = getattr(engine, "engine", "") or "the current"
+        raise RuntimeError(
+            f"{preview_mode.title()} preview is not available with the "
+            f"{engine_name} render engine; switch the render engine or pick "
+            f"another preview mode"
+        ) from exc
+
+
 @contextmanager
 def _viewport_render_scope(viewport_context: ViewportRenderContext, preview_mode: str):
     space = viewport_context.space
@@ -165,7 +185,7 @@ def _viewport_render_scope(viewport_context: ViewportRenderContext, preview_mode
         if original_view_perspective is not None:
             region_3d.view_perspective = "CAMERA"
         if shading is not None:
-            shading.type = preview_mode
+            _apply_shading_type(shading, preview_mode)
         if overlay is not None and original_overlay is not None:
             overlay.show_overlays = False
         yield
@@ -256,6 +276,20 @@ def _write_render_thumbnail() -> bool:
     return "CANCELLED" not in result
 
 
+def _alpha_channel(pixels: Any, channels: int) -> Any:
+    """Return the alpha values of a flat RGBA pixel buffer.
+
+    ``bpy_prop_array`` rejects strided slicing, so real Blender images are
+    copied into a plain buffer first via ``foreach_get``.
+    """
+    foreach_get = getattr(pixels, "foreach_get", None)
+    if foreach_get is not None:
+        buffer = array("f", [0.0]) * len(pixels)
+        foreach_get(buffer)
+        pixels = buffer
+    return pixels[3::channels]
+
+
 def _preview_file_has_transparency(path: str) -> bool | None:
     images = getattr(getattr(bpy, "data", None), "images", None)
     load = getattr(images, "load", None)
@@ -270,7 +304,7 @@ def _preview_file_has_transparency(path: str) -> bool | None:
         if channels < 4:
             return False
         pixels = getattr(image, "pixels", ())
-        return any(alpha < 0.999 for alpha in pixels[3::channels])
+        return any(alpha < 0.999 for alpha in _alpha_channel(pixels, channels))
     except Exception as exc:
         debug_log(f"Preview transparency probe failed for {path}", exc)
         return None

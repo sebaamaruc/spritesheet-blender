@@ -26,15 +26,12 @@ Leer siempre:
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
 | `docs/plans/reinicio-v2-master-plan.md` | Siempre antes de planificar o ejecutar cualquier trabajo del reinicio V2 | aprobado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md` | Plan rector para corregir o clasificar todos los hallazgos de `docs/technical-audit.md` | aprobado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md` | Plan de implementacion activo en desarrollo / validacion | implementado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md` | Plan implementado de consolidacion, registro e higiene tecnica; requiere validacion GUI | implementado | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md` | Plan implementado de verificacion integral documental/automatica; requiere validacion GUI antes de Fase 7 | implementado | vigente | alta |
 
 ## Planes de Subfases Validados
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
+| `docs/archive/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md` | Plan rector para corregir o clasificar todos los hallazgos de `docs/technical-audit.md` | cerrado | vigente | alta |
 | `docs/archive/reinicio-v2-fase-6a-selector-modal-lifecycle.md` | Hito 1 validado: C1, C2 y B5 modal/lifecycle | validado | vigente | alta |
 | `docs/archive/reinicio-v2-fase-6a-validacion-hito1-selector-modal-lifecycle.md` | Validacion de hito 1 modal/lifecycle | validado | vigente | alta |
 | `docs/archive/reinicio-v2-fase-6a-hito2-selector-playback-integridad.md` | Hito 2 validado: integridad selector/playback | validado | vigente | alta |
@@ -42,6 +39,9 @@ Leer siempre:
 | `docs/archive/reinicio-v2-fase-6b0-preview-camera-viewport.md` | Previews usan camara efectiva desde Viewport | validado | vigente | alta |
 | `docs/archive/reinicio-v2-fase-6b-preview-alpha-estado-visual.md` | Hito de previews, alpha y estado visual | validado | vigente | alta |
 | `docs/archive/reinicio-v2-fase-6c-render-cache-final.md` | Eliminacion de render cache final e integracion MVP | validado | vigente | alta |
+| `docs/archive/reinicio-v2-fase-6d-rendimiento-export.md` | Plan de rendimiento, memoria y seguridad de export | cerrado | vigente | alta |
+| `docs/archive/reinicio-v2-fase-6e-consolidacion-higiene.md` | Plan de consolidacion, registro e higiene tecnica | cerrado | vigente | alta |
+| `docs/archive/reinicio-v2-fase-6f-verificacion-integral-auditoria.md` | Plan de verificacion integral de auditoria | cerrado | vigente | alta |
 
 ## Planes Propuestos
 
@@ -89,6 +89,4 @@ Los documentos cerrados, reemplazados u obsoletos viven en `docs/archive/`.
 
 | Documento | Cuando leerlo | Estado | Vigencia | Confianza |
 |---|---|---|---|---|
-| `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md` | Plan activo para continuar la tarea actual | activo | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md` | Plan activo para continuar la tarea actual | activo | vigente | alta |
-| `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md` | Plan activo implementado; validar junto a 6d antes de Fase 7 | activo | vigente | alta |
+| `docs/plans/reinicio-v2-master-plan.md` | Plan activo para continuar la tarea actual | activo | vigente | alta |

@@ -3,7 +3,7 @@
 Estado: aprobado
 Autoridad: usuario
 Modo de ejecucion: ejecutar sin replanificar
-Estado De Ejecucion: implementado
+Estado De Ejecucion: cerrado
 
 ## Referencia Superior
 

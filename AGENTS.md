@@ -119,3 +119,5 @@ Validar no es cerrar. Un agente no debe ejecutar `pcs close`, archivar planes ni
 Si el usuario solo dice "aprobado", "validado", "se ve bien", "procede" o similar, dejar el plan como `validado` o `listo para cierre` y esperar cierre explicito.
 
 Si la tarea implica actualizar, validar, reparar o cerrar PCS, leer `docs/specs/pcs-agent-usage.md` antes de actuar.
+
+Ritual de salida: toda sesion que mueva, renombre o archive documentos, o cierre una implementacion, debe terminar ejecutando `pcs check` y dejarlo en verde antes de entregar el handoff. Si check falla: reparar lo mecanico en la misma sesion, proponer lo semantico con `pcs update draft`, y declarar lo no reparable en `.context/handoff.md`. Un check rojo nunca se oculta ni se resuelve adivinando.

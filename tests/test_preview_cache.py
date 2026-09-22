@@ -465,6 +465,92 @@ class PreviewAlphaSettingsTests(unittest.TestCase):
                 generator.bpy.data = original_data
 
 
+class ShadingTypeTests(unittest.TestCase):
+    """Engine-restricted shading modes must produce an actionable message."""
+
+    def test_unavailable_shading_mode_is_translated(self):
+        class RestrictedShading:
+            type = "SOLID"
+
+            def __setattr__(self, key, value):
+                if key == "type" and value not in {"WIREFRAME", "SOLID", "RENDERED"}:
+                    raise TypeError(
+                        'bpy_struct: item.attr = val: enum "MATERIAL" not found in '
+                        "('WIREFRAME', 'SOLID', 'RENDERED')"
+                    )
+                object.__setattr__(self, key, value)
+
+        with self.assertRaises(RuntimeError) as caught:
+            generator._apply_shading_type(RestrictedShading(), "MATERIAL")
+        message = str(caught.exception)
+        self.assertIn("Material preview is not available", message)
+        self.assertIn("render engine", message)
+        self.assertNotIn("bpy_struct", message)
+
+    def test_available_shading_mode_is_applied(self):
+        class Shading:
+            type = "SOLID"
+
+        shading = Shading()
+        generator._apply_shading_type(shading, "SOLID")
+        self.assertEqual(shading.type, "SOLID")
+
+
+class StridedPixelArray:
+    """Mimics ``bpy_prop_array``: no strided slicing, but ``foreach_get`` works.
+
+    Regression guard: a plain ``list`` stub accepts ``pixels[3::4]`` while the
+    real Blender type raises ``TypeError``, which previously made the alpha
+    probe fail silently and return ``None`` for every image.
+    """
+
+    def __init__(self, values):
+        self._values = list(values)
+
+    def __len__(self):
+        return len(self._values)
+
+    def __getitem__(self, key):
+        if isinstance(key, slice) and key.step not in (None, 1):
+            raise TypeError("slice indices must be integers or None or have an __index__ method")
+        return self._values[key]
+
+    def foreach_get(self, buffer):
+        typecode = getattr(buffer, "typecode", None)
+        if typecode is None:
+            buffer[:] = list(self._values)
+        else:
+            from array import array as _array
+
+            buffer[:] = _array(typecode, self._values)
+
+
+class PreviewAlphaProbeArrayTests(unittest.TestCase):
+    def _probe(self, channels, values, path="/tmp/frame.png"):
+        original_data = getattr(generator.bpy, "data", None)
+        try:
+            generator.bpy.data = SimpleNamespace(
+                images=FakeImages(
+                    SimpleNamespace(channels=channels, pixels=StridedPixelArray(values))
+                )
+            )
+            return generator._preview_file_has_transparency(path)
+        finally:
+            if original_data is None:
+                delattr(generator.bpy, "data")
+            else:
+                generator.bpy.data = original_data
+
+    def test_detects_alpha_on_a_blender_style_pixel_array(self):
+        self.assertIs(
+            self._probe(4, [1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.25]),
+            True,
+        )
+
+    def test_reports_opaque_on_a_blender_style_pixel_array(self):
+        self.assertIs(self._probe(4, [1.0, 1.0, 1.0, 1.0]), False)
+
+
 class PreviewCacheGcTests(unittest.TestCase):
     def test_purge_sibling_preview_caches_keeps_current_and_unmanaged_entries(self):
         with tempfile.TemporaryDirectory() as tmpdir:

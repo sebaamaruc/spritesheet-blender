@@ -2,7 +2,7 @@
 
 PCS-Version: 1
 PCS-Template-Version: 1.1.0
-Ultima actualizacion: 2026-07-08
+Ultima actualizacion: 2026-07-14
 Actualizado por: pcs
 
 ## Resumen Actual
@@ -13,33 +13,27 @@ El plan gobernante aprobado es `docs/plans/reinicio-v2-master-plan.md`. Este mas
 
 ## Tarea Activa
 
-Validar en Blender GUI los subplanes implementados `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md`, `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md` y `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md`.
+Revisar y aprobar el plan de la Fase 7 para realizar la validación final en Blender GUI, empaquetado y distribución. La Fase 6 (Correcciones de Auditoría Técnica) ha sido implementada y archivada.
 
 ## Proximo Paso Recomendado
 
-Ejecutar validacion GUI acumulada de Fase 6d/6e/6f: export mediano sin regresion visual, progreso visible, fallo temprano con mas de 999 frames individuales, activacion/desactivacion/reactivacion del addon, preview/export con validacion comun, panel sin warnings duplicados y dirty flags correctos al cambiar defaults/overrides.
+Obtener la aprobación del usuario para el plan `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md` para iniciar las pruebas en Blender GUI, limpieza y empaquetado.
 
 ## Estado
 
-- Fase 6d rendimiento, memoria y seguridad de export: implementado; validacion Blender GUI pendiente
-- Fase 6e consolidacion, registro e higiene tecnica: implementado por instruccion explicita del usuario; validacion Blender GUI pendiente
-- Fase 6f verificacion integral de auditoria: implementado en verificacion documental/automatica; validacion Blender GUI pendiente
-- Fase 7 validacion final y distribucion: plan propuesto, diferido hasta validar Fase 6
-- Ejecucion de reinicio V2: pendiente de planes especificos por fase
+- Fase 6 (Correcciones de Auditoria Tecnica): implementada y cerrada (archivada).
+- Fase 7 (Validacion final y distribucion): plan propuesto y listo para aprobacion.
+- Ejecucion de reinicio V2: pendiente de aprobacion de Fase 7.
 
 ## Archivos Relevantes Ahora
 
 - `docs/plans/reinicio-v2-master-plan.md`
-- `docs/technical-audit.md`
-- `docs/plans/reinicio-v2-fase-6-correcciones-auditoria-tecnica.md`
-- `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md`
-- `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md`
-- `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md`
 - `docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`
+- `docs/specs/mvp_v2.md`
 
 ## Plan Activo
 
-`docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md`
+Ninguno
 
 ## Decisiones Vigentes Relevantes
 
@@ -67,7 +61,6 @@ Ejecutar validacion GUI acumulada de Fase 6d/6e/6f: export mediano sin regresion
 ## Riesgos Abiertos
 
 - Fase 7 puede descubrir bugs de packaging/lifecycle que requieran correcciones menores antes de distribuir.
-- `docs/technical-audit.md` detecto hallazgos criticos/altos que deben corregirse o clasificarse antes de distribucion.
 - Blender background dentro del sandbox crashea antes de ejecutar Python; fuera del sandbox fue rechazado por politica del entorno actual en validaciones previas.
 - La limpieza automatica de `__pycache__` generados por validacion fue rechazada por politica del entorno; no se intento una via alternativa.
 
@@ -77,6 +70,4 @@ Ninguno detectado.
 
 ## Validaciones Pendientes
 
-- Validar en Blender GUI `docs/plans/reinicio-v2-fase-6d-rendimiento-export.md`.
-- Validar en Blender GUI `docs/plans/reinicio-v2-fase-6e-consolidacion-higiene.md`: activar/desactivar addon, generar preview/export, confirmar panel sin mensajes duplicados y defaults/overrides marcando cache dirty.
-- Validar en Blender GUI `docs/plans/reinicio-v2-fase-6f-verificacion-integral-auditoria.md`: matriz acumulada de Fase 6, incluyendo selector modal/lifecycle, preview desde camara efectiva, regenerate, scroll, playback/seleccion, export transparente y B8 diferido a Fase 7.
+- Aprobar e iniciar el plan de la Fase 7 (`docs/plans/reinicio-v2-fase-7-validacion-distribucion.md`) para proceder con la validación GUI integral y la distribución final.
